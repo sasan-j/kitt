@@ -1,0 +1,16 @@
+torch
+torchvision
+matplotlib
+wurlitzer
+accelerate
+bitsandbytes
+optimum
+auto-gptq
+gradio
+TTS
+transformers==4.36
+numpy
+openai-whisper
+geopy
+langchain
+text_generation
