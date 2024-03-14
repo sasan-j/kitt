@@ -1,0 +1,13 @@
+# these requirements are only required for development inside vscode
+pre-commit      # hooks for applying linters on commit
+black           # code formatting
+isort           # import sorting
+flake8          # code analysis
+pylint          # code analysis
+bandit          # security analysis
+ipykernel       # jupyter kernel for vscode
+
+# auxiliary requirements
+read-version
+wheel
+setuptools
