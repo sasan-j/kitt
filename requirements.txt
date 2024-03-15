@@ -14,3 +14,4 @@ openai-whisper
 geopy
 langchain
 text_generation
+python-dotenv
