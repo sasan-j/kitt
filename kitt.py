@@ -5,7 +5,6 @@ import requests
 # INTERFACE WITH AUDIO TO AUDIO
 
 
-
 def transcript(
     general_context, link_to_audio, voice, emotion, place, time, delete_history, state
 ):
@@ -132,10 +131,17 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
             #     value="Kirchberg Campus, Kirchberg",
             #     show_label=True,
             # )
-            origin = gr.Textbox(value="Luxembourg Gare, Luxembourg", label="Origin", interactive=True)
+            origin = gr.Textbox(
+                value="Luxembourg Gare, Luxembourg", label="Origin", interactive=True
+            )
             destination = gr.Textbox(
-                value="Kirchberg Campus, Kirchberg", label="Destination", interactive=True)
-            recorder = gr.Audio(type="filepath", label="input audio", elem_id="recorder")
+                value="Kirchberg Campus, Kirchberg",
+                label="Destination",
+                interactive=True,
+            )
+            recorder = gr.Audio(
+                type="filepath", label="input audio", elem_id="recorder"
+            )
         with gr.Column(scale=2, min_width=600):
             map_plot = gr.Plot()
             origin.submit(fn=calculate_route, outputs=map_plot)
