@@ -1,8 +1,9 @@
 import inspect
 
-from .common import execute_function_call, extract_func_args
+from .common import execute_function_call, extract_func_args, vehicle
 from .weather import get_weather, get_forecast
 from .routing import find_route
+from .vehicle import vehicle_status
 
 
 def format_functions_for_prompt_raven(*functions):
@@ -16,7 +17,7 @@ def format_functions_for_prompt_raven(*functions):
         signature = f"{func.__name__}{inspect.signature(func)}"
         docstring = inspect.getdoc(func)
         formatted_functions.append(
-            f"OPTION:\n<func_start>{signature}<func_end>\n<docstring_start>\n{docstring}\n<docstring_end>"
+            f"Function:\n<func_start>{signature}<func_end>\n<docstring_start>\n{docstring}\n<docstring_end>"
         )
     return "\n".join(formatted_functions)
 
