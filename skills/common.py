@@ -3,6 +3,7 @@ from typing import Union
 
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import BaseModel
 
 import skills
 
@@ -11,6 +12,14 @@ class Settings(BaseSettings):
     TOMTOM_API_KEY: str
 
     model_config = SettingsConfigDict(env_file=".env")
+
+
+class VehicleStatus(BaseModel):
+    location: str
+    location_coordinates: tuple[float, float] # (latitude, longitude)
+    date: str
+    time: str
+    destination: str
 
 
 def execute_function_call(text: str, dry_run=False) -> str:
@@ -43,3 +52,11 @@ def extract_func_args(text: str) -> tuple[str, dict]:
 
 
 config = Settings() # type: ignore
+
+vehicle = VehicleStatus(
+    location="Luxembourg Gare, Luxembourg",
+    location_coordinates=(49.6002, 6.1296),
+    date="2025-03-29",
+    time="08:00:20",
+    destination="Kirchberg Campus, Kirchberg"
+)
