@@ -1,7 +1,5 @@
 from datetime import datetime
-
 import requests
-
 from .common import config, vehicle
 
 
@@ -10,6 +8,7 @@ def find_coordinates(address):
     Find the coordinates of a specific address.
     :param address (string): Required. The address
     """
+    # https://developer.tomtom.com/geocoding-api/documentation/geocode
     url = f"https://api.tomtom.com/search/2/geocode/{address}.json?key={config.TOMTOM_API_KEY}"
     response = requests.get(url)
     data = response.json()
@@ -19,11 +18,10 @@ def find_coordinates(address):
 
 
 def calculate_route():
-    api_key = "api_key"
     origin = "49.631997,6.171029"
     destination = "49.586745,6.140002"
 
-    url = f"https://api.tomtom.com/routing/1/calculateRoute/{origin}:{destination}/json?key={api_key}"
+    url = f"https://api.tomtom.com/routing/1/calculateRoute/{origin}:{destination}/json?key={config.TOMTOM_API_KEY}"
     response = requests.get(url)
     data = response.json()
 
@@ -65,7 +63,8 @@ def find_route_tomtom(
     :param lon_dest (string):  longitude of destination
     :param depart_time (string):  departure hour, in the format '08:00:20'.
     """
-
+    # https://developer.tomtom.com/routing-api/documentation/routing/calculate-route
+    # https://developer.tomtom.com/routing-api/documentation/routing/guidance-instructions
     r = requests.get(
         f"https://api.tomtom.com/routing/1/calculateRoute/{lat_depart},{lon_depart}:{lat_dest},{lon_dest}/json?key={config.TOMTOM_API_KEY}&departAt={depart_datetime}",
         timeout=5,
@@ -132,4 +131,4 @@ def find_route(destination=""):
     arrival_hour_display = arrival_time.strftime("%H:%M")
 
     # return the distance and time
-    return f"This is the answer you must copy exactly as is: The route to {destination} is {distance_km:.2f} km and {time_display}. Leaving now, the arrival time is estimated at {arrival_hour_display} "
+    return f"The route to {destination} is {distance_km:.2f} km and {time_display}. Leaving now, the arrival time is estimated at {arrival_hour_display}.", raw_response["routes"][0]["legs"][0]["points"]

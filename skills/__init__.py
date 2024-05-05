@@ -3,6 +3,7 @@ import inspect
 from .common import execute_function_call, extract_func_args, vehicle
 from .weather import get_weather, get_forecast
 from .routing import find_route
+from .poi import search_points_of_interests, search_along_route_w_coordinates
 from .vehicle import vehicle_status
 
 
@@ -22,4 +23,4 @@ def format_functions_for_prompt_raven(*functions):
     return "\n".join(formatted_functions)
 
 
-SKILLS_PROMPT = format_functions_for_prompt_raven(get_weather, get_forecast, find_route)
+SKILLS_PROMPT = format_functions_for_prompt_raven(get_weather, get_forecast, find_route, search_points_of_interests)

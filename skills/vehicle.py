@@ -1,4 +1,4 @@
-from skills import vehicle
+from .common import vehicle
 
 
 STATUS_TEMPLATE = """We are at {location}, current time: {time}, current date: {date} and our destination is: {destination}.
