@@ -86,7 +86,7 @@ def find_points_of_interest(lat="0", lon="0", type_of_poi="restaurant"):
 
     # Format and limit to top 5 results
     formatted_results = [
-        f"The {type_of_poi} {result['poi']['name']} is {int(result['dist'])} meters away"
+        f"The {type_of_poi} {result['poi']['name']}, {int(result['dist'])} meters away"
         for result in sorted_results[:5]
     ]
 
