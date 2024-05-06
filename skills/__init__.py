@@ -1,10 +1,27 @@
+from datetime import datetime
 import inspect
 
-from .common import execute_function_call, extract_func_args, vehicle
+from .common import execute_function_call, extract_func_args, vehicle as vehicle_obj
 from .weather import get_weather, get_forecast
 from .routing import find_route
 from .poi import search_points_of_interests, search_along_route_w_coordinates
 from .vehicle import vehicle_status
+
+
+
+def date_time_info():
+    """Get the current date and time."""
+    time = getattr(vehicle_obj, "time")
+    date = getattr(vehicle_obj, "date")
+    datetime_obj = datetime.fromisoformat(f"{date}T{time}")
+    human_readable_datetime = datetime_obj.strftime("%I:%M %p %A, %B %d, %Y")
+    return f"It is {human_readable_datetime}."
+
+
+def do_anything_else():
+    """If the user wants to do anything else call this function. If the question doesn't match any of the functions use this one."""
+    return True
+
 
 
 def format_functions_for_prompt_raven(*functions):

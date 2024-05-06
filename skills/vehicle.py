@@ -1,7 +1,9 @@
 from .common import vehicle
 
 
-STATUS_TEMPLATE = """We are at {location}, current time: {time}, current date: {date} and our destination is: {destination}.
+STATUS_TEMPLATE = """
+We are at {location}, coordinates: {lat}, {lon},
+current time: {time}, current date: {date} and our destination is: {destination}.
 """
 
 
@@ -19,13 +21,15 @@ def vehicle_status() -> tuple[str, dict[str, str]]:
             "destination": "Kirchberg Campus, Kirchberg"
         }
     """
-    vs = {
-        "location": "Luxembourg Gare, Luxembourg",
-        "lat": 49.6000,
-        "lon": 6.1333,
-        "date": "2025-03-29",
-        "time": "08:00:20",
-        "destination": "Kirchberg Campus, Kirchberg"
-    }
+    # vs = {
+    #     "location": "Luxembourg Gare, Luxembourg",
+    #     "lat": 49.6000,
+    #     "lon": 6.1333,
+    #     "date": "2025-03-29",
+    #     "time": "08:00:20",
+    #     "destination": "Kirchberg Campus, Luxembourg"
+    # }
     vs = vehicle.dict()
+    vs["lat"] = vs["location_coordinates"][0]
+    vs["lon"] = vs["location_coordinates"][1]
     return  STATUS_TEMPLATE.format(**vs), vs

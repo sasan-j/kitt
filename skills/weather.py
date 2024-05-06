@@ -1,14 +1,19 @@
 import requests
 
-from .common import config
+from .common import config, vehicle
 
 #current weather API
-def get_weather(location:str= "", **kwargs):
+def get_weather(location:str= ""):
     """
     Returns the CURRENT weather in a specified location.
     Args:
-    location (string) : Required. The name of the location, could be a city or lat/longitude in the following format latitude,longitude (example: 37.7749,-122.4194).
+    location (string) : Required. The name of the location, could be a city or lat/longitude in the following format latitude,longitude (example: 37.7749,-122.4194). If the location is not specified, the function will return the weather in the current location.
     """
+
+    if location == "":
+        print(f"get_weather: location is empty, using the vehicle location. ({vehicle.location})")
+        location = vehicle.location
+
     # The endpoint URL provided by WeatherAPI
     url = f"http://api.weatherapi.com/v1/current.json?key={config.WEATHER_API_KEY}&q={location}&aqi=no"
     print(url)

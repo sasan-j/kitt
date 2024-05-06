@@ -109,8 +109,8 @@ def find_route_tomtom(
 
 
 def find_route(destination=""):
-    """
-    Find a route and return the distance and the estimated time to go to a specific destination from the current location.
+    """This function finds a route to a destination and returns the distance and the estimated time to go to a specific destination\
+ from the current location.
     :param destination (string): Required. The destination
     """
     # lat, lon, city = check_city_coordinates(lat_depart,lon_depart,city_depart)
@@ -153,7 +153,5 @@ def find_route(destination=""):
     arrival_hour_display = arrival_time.strftime("%H:%M")
 
     # return the distance and time
-    return (
-        f"The route to {destination} is {distance_km:.2f} km and {time_display}. Leaving now, the arrival time is estimated at {arrival_hour_display}.",
-        raw_response["routes"][0]["legs"][0]["points"],
-    )
+    return f"The route to {destination} is {distance_km:.2f} km which takes {time_display}. Leaving now, the arrival time is estimated at {arrival_hour_display}."
+        # raw_response["routes"][0]["legs"][0]["points"]
