@@ -1,5 +1,12 @@
+import time
 import gradio as gr
+import numpy as np
 import requests
+import torch
+import torchaudio
+from transformers import pipeline
+
+
 
 import skills
 from skills.common import config, vehicle
@@ -21,6 +28,7 @@ from skills import (
     date_time_info
 )
 from skills import extract_func_args
+from core import voice_options, load_tts_pipeline, tts_gradio
 
 
 global_context = {
@@ -29,6 +37,7 @@ global_context = {
     "route_points": [],
 }
 
+speaker_embedding_cache = {}
 
 MODEL_FUNC = "nexusraven"
 MODEL_GENERAL = "llama3:instruct"
@@ -102,7 +111,7 @@ def run_generic_model(query):
     return out["response"]
 
 
-def run_model(query):
+def run_model(query, voice_character):
     print("Query: ", query)
     global_context["query"] = query
     global_context["prompt"] = get_prompt(RAVEN_PROMPT_FUNC, query, "", tools)
@@ -124,11 +133,60 @@ def run_model(query):
         func_name, kwargs = extract_func_args(llm_response)
         print(f"Function: {func_name}, Args: {kwargs}")
         if func_name == "do_anything_else":
-            return run_generic_model(query)
-    
-        return use_tool(func_name, kwargs, tools)
-    return out["response"]
+            output_text = run_generic_model(query)
+        else:
+            output_text = use_tool(func_name, kwargs, tools)
+    else:
+        output_text = out["response"]
 
+    if type(output_text) == tuple:
+        output_text = output_text[0]
+    gr.Info(f"Output text: {output_text}, generating voice output...")
+    return output_text, tts_gradio(tts_pipeline, output_text, voice_character, speaker_embedding_cache)[0]
+
+
+def calculate_route_gradio(origin, destination):
+    plot, vehicle_status, points = calculate_route(origin, destination)
+    global_context["route_points"] = points
+    vehicle.location_coordinates = points[0]["latitude"], points[0]["longitude"]
+    return plot, vehicle_status
+
+
+def update_vehicle_status(trip_progress):
+    n_points = len(global_context["route_points"])
+    new_coords = global_context["route_points"][max(int(trip_progress / 100 * n_points), n_points - 1)]
+    new_coords = new_coords["latitude"], new_coords["longitude"]
+    print(f"Trip progress: {trip_progress}, len: {n_points}, new_coords: {new_coords}")
+    vehicle.location_coordinates = new_coords
+    return vehicle.model_dump_json()
+
+
+device = "cuda" if torch.cuda.is_available() else "cpu"
+transcriber = pipeline("automatic-speech-recognition", model="openai/whisper-base.en", device=device)
+
+
+def save_audio_as_wav(data, sample_rate, file_path):
+    # make a tensor from the numpy array
+    data = torch.tensor(data).reshape(1, -1)
+    torchaudio.save(file_path, data, sample_rate=sample_rate, bits_per_sample=16, encoding="PCM_S")
+
+
+def save_and_transcribe_audio(audio):
+    # capture the audio and save it to a file as wav or mp3
+    # file_name = save("audioinput.wav")
+    sr, y = audio
+    # y = y.astype(np.float32)
+    # y /= np.max(np.abs(y))
+
+    # add timestamp to file name
+    filename = f"recordings/audio{time.time()}.wav"
+    save_audio_as_wav(y, sr, filename)
+    
+    sr, y = audio
+    y = y.astype(np.float32)
+    y /= np.max(np.abs(y))
+    text = transcriber({"sampling_rate": sr, "raw":y})["text"]
+    return text
 
 # to be able to use the microphone on chrome, you will have to go to chrome://flags/#unsafely-treat-insecure-origin-as-secure and enter http://10.186.115.21:7860/
 # in "Insecure origins treated as secure", enable it and relaunch chrome
@@ -136,6 +194,9 @@ def run_model(query):
 # example question:
 # what's the weather like outside?
 # What's the closest restaurant from here?
+
+
+tts_pipeline = load_tts_pipeline()
 
 
 with gr.Blocks(theme=gr.themes.Default()) as demo:
@@ -146,6 +207,7 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
             "route_points": [],
         }
     )
+    trip_points = gr.State(value=[])
 
     with gr.Row():
         with gr.Column(scale=1, min_width=300):
@@ -161,24 +223,7 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
                 value="No",
                 interactive=True,
             )
-            voice_character = gr.Radio(
-                choices=[
-                    "Morgan Freeman",
-                    "Eddie Murphy",
-                    "David Attenborough",
-                    "Rick Sanches",
-                ],
-                label="Choose a voice",
-                value="Morgan Freeman",
-                show_label=True,
-                interactive=True,
-            )
-            emotion = gr.Radio(
-                choices=["Cheerful", "Grumpy"],
-                label="Choose an emotion",
-                value="Cheerful",
-                show_label=True,
-            )
+            voice_character = gr.Radio(choices=voice_options, label='Choose a voice', value=voice_options[0], show_label=True)
             origin = gr.Textbox(
                 value="Luxembourg Gare, Luxembourg", label="Origin", interactive=True
             )
@@ -190,13 +235,14 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
 
         with gr.Column(scale=2, min_width=600):
             map_plot = gr.Plot()
+            trip_progress = gr.Slider(0, 100, step=5, label="Trip progress", interactive=True)
 
             # map_if = gr.Interface(fn=plot_map, inputs=year_input, outputs=map_plot)
 
     with gr.Row():
         with gr.Column():
-            recorder = gr.Audio(
-                type="filepath", label="Input audio", elem_id="recorder"
+            input_audio = gr.Audio(
+                type="numpy",sources=["microphone"], label="Input audio", elem_id="input_audio"
             )
             input_text = gr.Textbox(
                 value="How is the weather?", label="Input text", interactive=True
@@ -205,7 +251,7 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
                 value=vehicle.model_dump_json(), label="Vehicle status"
             )
         with gr.Column():
-            output_audio = gr.Audio(label="output audio")
+            output_audio = gr.Audio(label="output audio", autoplay=True)
             output_text = gr.TextArea(value="", label="Output text", interactive=False)
     # iface = gr.Interface(
     #     fn=transcript,
@@ -226,12 +272,12 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
     # Update plot based on the origin and destination
     # Sets the current location and destination
     origin.submit(
-        fn=calculate_route,
+        fn=calculate_route_gradio,
         inputs=[origin, destination],
         outputs=[map_plot, vehicle_status],
     )
     destination.submit(
-        fn=calculate_route,
+        fn=calculate_route_gradio,
         inputs=[origin, destination],
         outputs=[map_plot, vehicle_status],
     )
@@ -240,7 +286,17 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
     time_picker.select(fn=set_time, inputs=[time_picker], outputs=[vehicle_status])
 
     # Run the model if the input text is changed
-    input_text.submit(fn=run_model, inputs=[input_text], outputs=[output_text])
+    input_text.submit(fn=run_model, inputs=[input_text, voice_character], outputs=[output_text, output_audio])
+
+    # Set the vehicle status based on the trip progress
+    trip_progress.release(
+        fn=update_vehicle_status, inputs=[trip_progress], outputs=[vehicle_status]
+    )
+
+    # Save and transcribe the audio
+    input_audio.stop_recording(
+        fn=save_and_transcribe_audio, inputs=[input_audio], outputs=[input_text]
+    )
 
 # close all interfaces open to make the port available
 gr.close_all()
