@@ -1,42 +1,20 @@
 import gradio as gr
-import plotly.express as px
 import requests
 
-# INTERFACE WITH AUDIO TO AUDIO
+import skills
+from skills.common import config, vehicle
+from skills.routing import calculate_route
 
 
-def transcript(
-    general_context, link_to_audio, voice, emotion, place, time, delete_history, state
-):
-    """this function manages speech-to-text to input Fnanswer function and text-to-speech with the Fnanswer output"""
-    # load audio from a specific path
-    audio_path = link_to_audio
-    audio_array, sampling_rate = librosa.load(
-        link_to_audio, sr=16000
-    )  # "sr=16000" ensures that the sampling rate is as required
+# Generate options for hours (00-23)
+hour_options = [f"{i:02d}:00" for i in range(24)]
 
-    # process the audio array
-    input_features = processor(
-        audio_array, sampling_rate, return_tensors="pt"
-    ).input_features
-    predicted_ids = modelw.generate(input_features)
-    transcription = processor.batch_decode(predicted_ids, skip_special_tokens=True)
-    quest_processing = FnAnswer(
-        general_context, transcription, place, time, delete_history, state
-    )
-    state = quest_processing[2]
-    print("langue " + quest_processing[3])
+def set_time(time_picker):
+    vehicle.time = time_picker
+    return vehicle.model_dump_json()
 
-    tts.tts_to_file(
-        text=str(quest_processing[0]),
-        file_path="output.wav",
-        speaker_wav=f"Audio_Files/{voice}.wav",
-        language=quest_processing[3],
-        emotion="angry",
-    )
-
-    audio_path = "output.wav"
-    return audio_path, state["context"], state
+def get_vehicle_status(state):
+    return state.value["vehicle"].model_dump_json()
 
 
 # to be able to use the microphone on chrome, you will have to go to chrome://flags/#unsafely-treat-insecure-origin-as-secure and enter http://10.186.115.21:7860/
@@ -46,42 +24,6 @@ def transcript(
 # what's the weather like outside?
 # What's the closest restaurant from here?
 
-
-import gradio as gr
-
-shortcut_js = """
-<script>
-function shortcuts(e) {
-    var event = document.all ? window.event : e;
-    switch (e.target.tagName.toLowerCase()) {
-        case "input":
-        case "textarea":
-        break;
-        default:
-        if (e.key.toLowerCase() == "r" && e.ctrlKey) {
-            console.log("recording")
-            document.getElementById("recorder").start_recording();
-        }
-        if (e.key.toLowerCase() == "s" && e.ctrlKey) {
-            console.log("stopping")
-            document.getElementById("recorder").stop_recording();
-        }
-    }
-}
-document.addEventListener('keypress', shortcuts, false);
-</script>
-"""
-
-# with gr.Blocks(head=shortcut_js) as demo:
-#     action_button = gr.Button(value="Name", elem_id="recorder")
-#     textbox = gr.Textbox()
-#     action_button.click(lambda : "button pressed", None, textbox)
-
-# demo.launch()
-
-
-# Generate options for hours (00-23)
-hour_options = [f"{i:02d}:00:00" for i in range(24)]
 
 model_answer = ""
 general_context = ""
@@ -93,25 +35,29 @@ initial_context = initial_state["context"]
 
 
 with gr.Blocks(theme=gr.themes.Default()) as demo:
+    state = gr.State(
+        value={"context": initial_context, "query": "", "vehicle": vehicle, "route_points": []}
+    )
 
     with gr.Row():
         with gr.Column(scale=1, min_width=300):
             time_picker = gr.Dropdown(
-                choices=hour_options, label="What time is it?", value="08:00:00"
+                choices=hour_options, label="What time is it? (HH:MM)", value="08:00", interactive=True
             )
             history = gr.Radio(
-                ["Yes", "No"], label="Maintain the conversation history?", value="No"
+                ["Yes", "No"], label="Maintain the conversation history?", value="No", interactive=True
             )
             voice_character = gr.Radio(
                 choices=[
-                    "Rick Sanches",
+                    "Morgan Freeman",
                     "Eddie Murphy",
                     "David Attenborough",
-                    "Morgan Freeman",
+                    "Rick Sanches",
                 ],
                 label="Choose a voice",
-                value="Rick Sancher",
+                value="Morgan Freeman",
                 show_label=True,
+                interactive=True,
             )
             emotion = gr.Radio(
                 choices=["Cheerful", "Grumpy"],
@@ -119,36 +65,36 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
                 value="Cheerful",
                 show_label=True,
             )
-            # place = gr.Radio(
-            #     choices=[
-            #         "Luxembourg Gare, Luxembourg",
-            #         "Kirchberg Campus, Kirchberg",
-            #         "Belval Campus, Belval",
-            #         "Eiffel Tower, Paris",
-            #         "Thionville, France",
-            #     ],
-            #     label="Choose a location for your car",
-            #     value="Kirchberg Campus, Kirchberg",
-            #     show_label=True,
-            # )
             origin = gr.Textbox(
                 value="Luxembourg Gare, Luxembourg", label="Origin", interactive=True
             )
             destination = gr.Textbox(
-                value="Kirchberg Campus, Kirchberg",
+                value="Kirchberg Campus, Luxembourg",
                 label="Destination",
                 interactive=True,
             )
-            recorder = gr.Audio(
-                type="filepath", label="input audio", elem_id="recorder"
-            )
+
         with gr.Column(scale=2, min_width=600):
             map_plot = gr.Plot()
-            origin.submit(fn=calculate_route, outputs=map_plot)
-            destination.submit(fn=calculate_route, outputs=map_plot)
-            output_audio = gr.Audio(label="output audio")
+            
             # map_if = gr.Interface(fn=plot_map, inputs=year_input, outputs=map_plot)
 
+    with gr.Row():
+        with gr.Column():
+            recorder = gr.Audio(
+                type="filepath", label="Input audio", elem_id="recorder"
+            )
+            input_text = gr.Textbox(
+                value="How is the weather?", label="Input text", interactive=True
+            )
+            vehicle_status = gr.Textbox(
+                value=get_vehicle_status(state), label="Vehicle status", interactive=False
+            )
+        with gr.Column():
+            output_audio = gr.Audio(label="output audio")
+            output_text = gr.TextArea(
+                value="", label="Output text", interactive=False
+            )
     # iface = gr.Interface(
     #     fn=transcript,
     #     inputs=[
@@ -165,12 +111,21 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
     #     head=shortcut_js,
     # )
 
+    # Update plot based on the origin and destination
+    # Sets the current location and destination
+    origin.submit(fn=calculate_route, inputs=[origin, destination], outputs=[map_plot, vehicle_status])
+    destination.submit(fn=calculate_route, inputs=[origin, destination], outputs=[map_plot, vehicle_status])
+
+    # Update time based on the time picker
+    time_picker.select(fn=set_time, inputs=[time_picker], outputs=[vehicle_status])
+
 # close all interfaces open to make the port available
 gr.close_all()
 # Launch the interface.
 
-demo.queue().launch(
-    debug=True, server_name="0.0.0.0", server_port=7860, ssl_verify=False
-)
+if __name__ == "__main__":
+    demo.launch(
+        debug=True, server_name="0.0.0.0", server_port=7860, ssl_verify=False
+    )
 
 # iface.launch(debug=True, share=False, server_name="0.0.0.0", server_port=7860, ssl_verify=False)
