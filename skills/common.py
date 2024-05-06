@@ -58,5 +58,5 @@ vehicle = VehicleStatus(
     location_coordinates=(49.6002, 6.1296),
     date="2025-03-29",
     time="08:00:20",
-    destination="Kirchberg Campus, Kirchberg"
+    destination="Kirchberg Campus, Luxembourg"
 )
