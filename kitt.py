@@ -130,6 +130,8 @@ def run_model(query, voice_character):
     out = ollama.generate(**data)
     llm_response = out["response"]
     if "Call: " in llm_response:
+        print(f"llm_response: {llm_response}")
+        llm_response = llm_response.replace("<bot_end>"," ")
         func_name, kwargs = extract_func_args(llm_response)
         print(f"Function: {func_name}, Args: {kwargs}")
         if func_name == "do_anything_else":
@@ -304,6 +306,7 @@ gr.close_all()
 # Launch the interface.
 
 if __name__ == "__main__":
-    demo.launch(debug=True, server_name="0.0.0.0", server_port=7860, ssl_verify=False)
+    # demo.launch(debug=True, server_name="0.0.0.0", server_port=7860, ssl_verify=False)
+    demo.launch(debug=True, server_name="0.0.0.0", server_port=7860, ssl_verify=True, share=True)
 
 # iface.launch(debug=True, share=False, server_name="0.0.0.0", server_port=7860, ssl_verify=False)
