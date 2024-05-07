@@ -85,7 +85,7 @@ tools = [
 
 
 # Generate options for hours (00-23)
-hour_options = [f"{i:02d}:00" for i in range(24)]
+hour_options = [f"{i:02d}:00:00" for i in range(24)]
 
 
 def set_time(time_picker):
@@ -158,6 +158,7 @@ def update_vehicle_status(trip_progress):
     new_coords = new_coords["latitude"], new_coords["longitude"]
     print(f"Trip progress: {trip_progress}, len: {n_points}, new_coords: {new_coords}")
     vehicle.location_coordinates = new_coords
+    vehicle.location = ""
     return vehicle.model_dump_json()
 
 
@@ -214,7 +215,7 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
             time_picker = gr.Dropdown(
                 choices=hour_options,
                 label="What time is it? (HH:MM)",
-                value="08:00",
+                value="08:00:00",
                 interactive=True,
             )
             history = gr.Radio(

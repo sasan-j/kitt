@@ -85,15 +85,22 @@ def find_route_tomtom(
     """
     # https://developer.tomtom.com/routing-api/documentation/routing/calculate-route
     # https://developer.tomtom.com/routing-api/documentation/routing/guidance-instructions
+    url = f"https://api.tomtom.com/routing/1/calculateRoute/{lat_depart},{lon_depart}:{lat_dest},{lon_dest}/json?key={config.TOMTOM_API_KEY}&departAt={depart_datetime}"
+
+    print(f"Calling TomTom API: {url}")
     r = requests.get(
-        f"https://api.tomtom.com/routing/1/calculateRoute/{lat_depart},{lon_depart}:{lat_dest},{lon_dest}/json?key={config.TOMTOM_API_KEY}&departAt={depart_datetime}",
+        url,
         timeout=5,
     )
 
     # Parse JSON from the response
     response = r.json()
 
-    result = response["routes"][0]["summary"]
+    try:
+        result = response["routes"][0]["summary"]
+    except KeyError:
+        print(f"Failed to find a route: {response}")
+        return "Failed to find a route", response
 
     distance_m = result["lengthInMeters"]
     duration_s = result["travelTimeInSeconds"]
@@ -154,4 +161,4 @@ def find_route(destination=""):
 
     # return the distance and time
     return f"The route to {destination} is {distance_km:.2f} km which takes {time_display}. Leaving now, the arrival time is estimated at {arrival_hour_display}."
-        # raw_response["routes"][0]["legs"][0]["points"]
+    # raw_response["routes"][0]["legs"][0]["points"]
