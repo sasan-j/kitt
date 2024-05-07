@@ -54,9 +54,9 @@ def extract_func_args(text: str) -> tuple[str, dict]:
 config = Settings() # type: ignore
 
 vehicle = VehicleStatus(
-    location="Luxembourg Gare, Luxembourg",
-    location_coordinates=(49.6002, 6.1296),
-    date="2025-03-29",
+    location="Rue Alphonse Weicker, Luxembourg",
+    location_coordinates=(49.63324, 6.169),
+    date="2025-05-07",
     time="08:00:20",
-    destination="Kirchberg Campus, Luxembourg"
+    destination="Luxembourg Gare, Luxembourg"
 )
