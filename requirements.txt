@@ -1,11 +1,12 @@
 torch
 torchvision
+torchaudio
 matplotlib
 wurlitzer
 accelerate
 bitsandbytes
 optimum
-auto-gptq
+# auto-gptq
 gradio
 TTS
 transformers==4.36
@@ -15,3 +16,7 @@ geopy
 langchain
 text_generation
 python-dotenv
+pydantic-settings
+ollama
+langchain
+plotly-express
