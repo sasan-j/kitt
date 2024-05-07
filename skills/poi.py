@@ -43,7 +43,7 @@ def search_points_of_interests(search_query="french restaurant"):
         return "No results found in the vicinity."
 
     # Sort the results based on distance
-    # sorted_results = sorted(results, key=lambda x: x["dist"])
+    results = sorted(results, key=lambda x: x["dist"])
     # print(sorted_results)
 
     # Format and limit to top 5 results

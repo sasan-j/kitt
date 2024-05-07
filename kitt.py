@@ -154,7 +154,7 @@ def calculate_route_gradio(origin, destination):
 
 def update_vehicle_status(trip_progress):
     n_points = len(global_context["route_points"])
-    new_coords = global_context["route_points"][max(int(trip_progress / 100 * n_points), n_points - 1)]
+    new_coords = global_context["route_points"][min(int(trip_progress / 100 * n_points), n_points - 1)]
     new_coords = new_coords["latitude"], new_coords["longitude"]
     print(f"Trip progress: {trip_progress}, len: {n_points}, new_coords: {new_coords}")
     vehicle.location_coordinates = new_coords
@@ -225,10 +225,10 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
             )
             voice_character = gr.Radio(choices=voice_options, label='Choose a voice', value=voice_options[0], show_label=True)
             origin = gr.Textbox(
-                value="Luxembourg Gare, Luxembourg", label="Origin", interactive=True
+                value="Rue Alphonse Weicker, Luxembourg", label="Origin", interactive=True
             )
             destination = gr.Textbox(
-                value="Kirchberg Campus, Luxembourg",
+                value="Luxembourg Gare, Luxembourg",
                 label="Destination",
                 interactive=True,
             )
