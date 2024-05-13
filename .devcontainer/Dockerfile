@@ -2,8 +2,8 @@
 # Run: sudo docker run -v $(pwd):/workspace/project --gpus all -it --rm <project_name>
 
 ARG USERNAME=kitt
-ARG USER_UID=1005
-ARG USER_GID=100
+ARG USER_UID=320869193
+ARG USER_GID=1429829944
 
 
 FROM nvidia/cuda:12.1.1-base-ubuntu22.04
