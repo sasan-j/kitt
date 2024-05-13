@@ -55,8 +55,8 @@ config = Settings() # type: ignore
 
 vehicle = VehicleStatus(
     location="Rue Alphonse Weicker, Luxembourg",
-    location_coordinates=(49.63324, 6.169),
+    location_coordinates=(49.505, 6.28111),
     date="2025-05-06",
     time="08:00:00",
-    destination="Luxembourg Gare, Luxembourg"
+    destination="Rue Alphonse Weicker, Luxembourg"
 )

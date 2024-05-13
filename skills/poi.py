@@ -48,7 +48,7 @@ def search_points_of_interests(search_query="french restaurant"):
 
     # Format and limit to top 5 results
     formatted_results = [
-        f"{result['poi']['name']} is {int(result['dist'])} meters away"
+        f"{result['poi']['name']}, {int(result['dist'])} meters away"
         for result in results[:3]
     ]
 
@@ -95,7 +95,7 @@ def find_points_of_interest(lat="0", lon="0", type_of_poi="restaurant"):
 
 def search_along_route_w_coordinates(points: list[tuple[float, float]], query: str):
     """
-    Return some of the closest points of interest along the route from the depart point, specified by its coordinates.
+    Return some of the closest points of interest along the route/way from the depart point, specified by its coordinates.
     :param points (list[tuple(float, float)]): Required. List of tuples of latitude and longitude of the points along the route.
     :param query (string): Required. type of point of interest depending on what the user wants to do.
     """
