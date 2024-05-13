@@ -11,7 +11,7 @@ from TTS.api import TTS
 os.environ["COQUI_TOS_AGREED"] = "1"
 
 
-Voice = namedtuple("voice", ["name", "neutral", "angry"])
+Voice = namedtuple("voice", ["name", "neutral", "angry", "speed"])
 
 file_full_path = pathlib.Path(os.path.realpath(__file__)).parent
 
@@ -20,16 +20,31 @@ voices = [
         "Attenborough",
         neutral=f"{file_full_path}/audio/attenborough/neutral.wav",
         angry=None,
+        speed=1.1,
     ),
-    Voice("Rick", neutral=f"{file_full_path}/audio/rick/neutral.wav", angry=None),
+    Voice(
+        "Rick",
+        neutral=f"{file_full_path}/audio/rick/neutral.wav",
+        angry=None,
+        speed=1.1,
+    ),
     Voice(
         "Freeman",
         neutral=f"{file_full_path}/audio/freeman/neutral.wav",
         angry="audio/freeman/angry.wav",
+        speed=1.1,
     ),
-    Voice("Walken", neutral=f"{file_full_path}/audio/walken/neutral.wav", angry=None),
     Voice(
-        "Darth Wader", neutral=f"{file_full_path}/audio/darth/neutral.wav", angry=None
+        "Walken",
+        neutral=f"{file_full_path}/audio/walken/neutral.wav",
+        angry=None,
+        speed=1.1,
+    ),
+    Voice(
+        "Darth Wader",
+        neutral=f"{file_full_path}/audio/darth/neutral.wav",
+        angry=None,
+        speed=1.1,
     ),
 ]
 
@@ -69,6 +84,14 @@ def voice_from_text(voice):
         if voice == f"{v.name} - Angry":
             return v.angry
     raise ValueError(f"Voice {voice} not found.")
+
+
+def speed_from_text(voice):
+    for v in voices:
+        if voice == f"{v.name} - Neutral":
+            return v.speed
+        if voice == f"{v.name} - Angry":
+            return v.speed
 
 
 def tts(
