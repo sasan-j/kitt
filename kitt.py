@@ -72,20 +72,23 @@ def use_tool(func_name, kwargs, tools):
             return tool.invoke(input=kwargs)
     return None
 
-tools = [
-    StructuredTool.from_function(get_weather),
-    StructuredTool.from_function(find_route),
-    # StructuredTool.from_function(vehicle_status),
-    StructuredTool.from_function(search_points_of_interests),
-    StructuredTool.from_function(search_along_route_w_coordinates),
-    StructuredTool.from_function(date_time_info),
-    StructuredTool.from_function(do_anything_else),
-]
 # llm = Ollama(model="nexusraven", stop=["\nReflection:", "\nThought:"], keep_alive=60*10)
 
 
 # Generate options for hours (00-23)
 hour_options = [f"{i:02d}:00:00" for i in range(24)]
+
+
+def search_along_route(query=""):
+    """Search for points of interest along the route/way to the destination.
+
+    Args:
+        query (str, optional): The type of point of interest to search for. Defaults to "restaurant".
+    
+    """
+    points = global_context["route_points"]
+    # maybe reshape
+    return search_along_route_w_coordinates(points, query)
 
 
 def set_time(time_picker):
@@ -97,10 +100,21 @@ def get_vehicle_status(state):
     return state.value["vehicle"].model_dump_json()
 
 
+tools = [
+    StructuredTool.from_function(get_weather),
+    StructuredTool.from_function(find_route),
+    # StructuredTool.from_function(vehicle_status),
+    StructuredTool.from_function(search_points_of_interests),
+    StructuredTool.from_function(search_along_route),
+    StructuredTool.from_function(date_time_info),
+    StructuredTool.from_function(do_anything_else),
+]
+
+
 def run_generic_model(query):
     print(f"Running the generic model with query: {query}")
     data = {
-        "prompt": query,
+        "prompt": f"Answer the question below in a short and concise manner.\n{query}",
         "model": MODEL_GENERAL,
         "options": {
             # "temperature": 0.1,
@@ -112,6 +126,7 @@ def run_generic_model(query):
 
 
 def run_model(query, voice_character):
+    query = query.strip().replace("'", "")
     print("Query: ", query)
     global_context["query"] = query
     global_context["prompt"] = get_prompt(RAVEN_PROMPT_FUNC, query, "", tools)
@@ -175,20 +190,24 @@ def save_audio_as_wav(data, sample_rate, file_path):
 
 
 def save_and_transcribe_audio(audio):
-    # capture the audio and save it to a file as wav or mp3
-    # file_name = save("audioinput.wav")
-    sr, y = audio
-    # y = y.astype(np.float32)
-    # y /= np.max(np.abs(y))
+    try:
+        # capture the audio and save it to a file as wav or mp3
+        # file_name = save("audioinput.wav")
+        sr, y = audio
+        # y = y.astype(np.float32)
+        # y /= np.max(np.abs(y))
 
-    # add timestamp to file name
-    filename = f"recordings/audio{time.time()}.wav"
-    save_audio_as_wav(y, sr, filename)
-    
-    sr, y = audio
-    y = y.astype(np.float32)
-    y /= np.max(np.abs(y))
-    text = transcriber({"sampling_rate": sr, "raw":y})["text"]
+        # add timestamp to file name
+        filename = f"recordings/audio{time.time()}.wav"
+        save_audio_as_wav(y, sr, filename)
+        
+        sr, y = audio
+        y = y.astype(np.float32)
+        y /= np.max(np.abs(y))
+        text = transcriber({"sampling_rate": sr, "raw":y})["text"]
+    except Exception as e:
+        print(f"Error: {e}")
+        return "Error transcribing audio"
     return text
 
 # to be able to use the microphone on chrome, you will have to go to chrome://flags/#unsafely-treat-insecure-origin-as-secure and enter http://10.186.115.21:7860/
@@ -228,10 +247,10 @@ with gr.Blocks(theme=gr.themes.Default()) as demo:
             )
             voice_character = gr.Radio(choices=voice_options, label='Choose a voice', value=voice_options[0], show_label=True)
             origin = gr.Textbox(
-                value="Rue Alphonse Weicker, Luxembourg", label="Origin", interactive=True
+                value="Mondorf-les-Bains, Luxembourg", label="Origin", interactive=True
             )
             destination = gr.Textbox(
-                value="Luxembourg Gare, Luxembourg",
+                value="Rue Alphonse Weicker, Luxembourg",
                 label="Destination",
                 interactive=True,
             )

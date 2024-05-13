@@ -120,6 +120,9 @@ def find_route(destination=""):
  from the current location.
     :param destination (string): Required. The destination
     """
+    if not destination:
+        destination = vehicle.destination
+
     # lat, lon, city = check_city_coordinates(lat_depart,lon_depart,city_depart)
     lat_dest, lon_dest = find_coordinates(destination)
     print(f"lat_dest: {lat_dest}, lon_dest: {lon_dest}")
