@@ -22,7 +22,8 @@ def get_weather(location:str= ""):
     response = requests.get(url)
 
     if response.status_code != 200:
-        return f"Failed to get weather data: {response.status_code}, {response.text}"
+        print(f"Failed to get weather data: {response.status_code}, {response.text}")
+        return f"Failed to get weather data, try again", response
 
     # Parse the JSON response
     weather_data = response.json()
