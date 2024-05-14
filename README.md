@@ -26,13 +26,19 @@ All required libraries and packages are directly loaded inside the notebook.
 To set up the speaking assistant in your car's system, follow these steps:  
 1.	Run all the cells until the “Interfaces (text and audio)” section.  
 2.	Choose between the interfaces which one to run: audio-to-audio or text-to-text.  
+
 ### Usage
 1.	Model Setup: Begin by loading the necessary models for speech recognition, language processing, and text-to-speech conversion as detailed in the "Models loads" section.  
 2.	Function Definition: Customize the assistant's responses and capabilities by defining functions in the "Function calling with NexusRaven" section.  
 3.	Interface Configuration: Choose the Gradio interface that suits your in-car system, following setup instructions in the "Interfaces (text and audio)" section.  
 4.	Activation: Execute one of the interface to start the speaking assistant, enabling vocal interactions within the car.  
 
-## Authors and acknowledgment
+## Authors
 
 Sasan Jafarnejad  
-Abigail Berthe--Pardo  
+Abigail Berthe--Pardo
+
+
+## License
+
+KITT is released under the [MIT License](https://opensource.org/licenses/MIT).
