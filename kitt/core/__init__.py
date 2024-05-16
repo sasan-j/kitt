@@ -10,6 +10,7 @@ from TTS.api import TTS
 
 os.environ["COQUI_TOS_AGREED"] = "1"
 
+tts_pipeline = None
 
 Voice = namedtuple("voice", ["name", "neutral", "angry", "speed"])
 
@@ -181,8 +182,13 @@ def tts(
     return wavs
 
 
-def tts_gradio(tts_pipeline, text, voice, cache):
+def tts_gradio(text, voice, cache):
+    global tts_pipeline
+    if not tts_pipeline:
+        tts_pipeline = load_tts_pipeline()
+
     voice_path = voice_from_text(voice)
+    speed = speed_from_text(voice)
     (gpt_cond_latent, speaker_embedding) = compute_speaker_embedding(
         voice_path, tts_pipeline.synthesizer.tts_config, tts_pipeline, cache
     )
@@ -193,7 +199,7 @@ def tts_gradio(tts_pipeline, text, voice, cache):
         speaker=None,
         gpt_cond_latent=gpt_cond_latent,
         speaker_embedding=speaker_embedding,
-        speed=1.1,
+        speed=speed,
         # file_path="out.wav",
     )
     return (22050, np.array(out)), dict(text=text, voice=voice)
