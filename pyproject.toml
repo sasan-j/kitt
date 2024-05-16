@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "kitt"
+version = "0.1.0"
+description = "LLM-based Voice Assistant for Cars"
+authors = ["Sasan <s.jafarnejad@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+
+
+[tool.poetry.scripts]
+kitt = 'main:app'
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
