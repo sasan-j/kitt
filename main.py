@@ -25,7 +25,7 @@ from kitt.skills import (
     search_along_route_w_coordinates,
     do_anything_else,
     date_time_info,
-    get_weather_current_location
+    get_weather_current_location,
 )
 from kitt.skills import extract_func_args
 from kitt.core import voice_options, tts_gradio
@@ -192,7 +192,6 @@ def run_llama3_model(query, voice_character):
 
 
 def run_model(query, voice_character, state):
-
     model = state.get("model", "nexusraven")
     query = query.strip().replace("'", "")
     print("Query: ", query)
@@ -224,8 +223,9 @@ def update_vehicle_status(trip_progress, origin, destination):
     print(f"Trip progress: {trip_progress}, len: {n_points}, new_coords: {new_coords}")
     vehicle.location_coordinates = new_coords
     vehicle.location = ""
-
-    plot = kitt_utils.plot_route(global_context["route_points"], vehicle=vehicle.location_coordinates)
+    plot = kitt_utils.plot_route(
+        global_context["route_points"], vehicle=vehicle.location_coordinates
+    )
     return vehicle.model_dump_json(), plot
 
 
@@ -373,7 +373,9 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
 
         # Set the vehicle status based on the trip progress
         trip_progress.release(
-            fn=update_vehicle_status, inputs=[trip_progress, origin, destination], outputs=[vehicle_status, map_plot]
+            fn=update_vehicle_status,
+            inputs=[trip_progress, origin, destination],
+            outputs=[vehicle_status, map_plot],
         )
 
         # Save and transcribe the audio

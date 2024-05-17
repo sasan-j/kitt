@@ -4,7 +4,7 @@ from .common import config, vehicle
 
 
 # Select coordinates at equal distance, including the last one
-def select_equally_spaced_coordinates(coords, number_of_points=10):
+def _select_equally_spaced_coordinates(coords, number_of_points=10):
     n = len(coords)
     selected_coords = []
     interval = max((n - 1) / (number_of_points - 1), 1)
@@ -18,8 +18,10 @@ def select_equally_spaced_coordinates(coords, number_of_points=10):
 
 def search_points_of_interests(search_query="french restaurant"):
     """
-    Return some of the closest points of interest matching the query.
-    :param search_query (string): Required. Describing the type of point of interest depending on what the user wants to do. Make sure to include the type of POI you are looking for. For example italian restaurant, grocery shop, etc.
+    Get some of the closest points of interest matching the query.
+
+    Args:
+        search_query (string): Required. Describing the type of point of interest depending on what the user wants to do. Make sure to include the type of POI you are looking for. For example italian restaurant, grocery shop, etc.
     """
 
     # Extract the latitude and longitude of the vehicle
@@ -103,7 +105,7 @@ def search_along_route_w_coordinates(points: list[tuple[float, float]], query: s
     # The API endpoint for searching along a route
     url = f"https://api.tomtom.com/search/2/searchAlongRoute/{query}.json?key={config.TOMTOM_API_KEY}&maxDetourTime=360&limit=20&sortBy=detourTime"
 
-    points = select_equally_spaced_coordinates(points, number_of_points=20)
+    points = _select_equally_spaced_coordinates(points, number_of_points=20)
 
     # The data payload
     payload = {
@@ -140,4 +142,4 @@ def search_along_route_w_coordinates(points: list[tuple[float, float]], query: s
             + f" \n{name} at {address} would require a detour of {int(detour_time/60)} minutes."
         )
 
-    return answer
+    return answer, data["results"][:5]

@@ -13,7 +13,6 @@ from loguru import logger
 from kitt.skills import vehicle_status
 
 
-
 class FunctionCall(BaseModel):
     arguments: dict
     """
@@ -25,6 +24,7 @@ class FunctionCall(BaseModel):
 
     name: str
     """The name of the function to call."""
+
 
 schema_json = json.loads(FunctionCall.schema_json())
 HRMS_SYSTEM_PROMPT = """<|begin_of_text|>
@@ -41,7 +41,7 @@ Once you have called a function, results will be fed back to you within <tool_re
 Don't make assumptions about tool results if <tool_response> XML tags are not present since function hasn't been executed yet.
 Analyze the data once you get the results and call another function.
 At each iteration please continue adding the your analysis to previous summary.
-Your final response should directly answer the user query.
+Your final response should directly answer the user query. Don't tell what you are doing, just do it.
 
 
 Here are the available tools:
@@ -53,8 +53,22 @@ If the provided function signatures doesn't have the function you must call, you
 Make sure that the json object above with code markdown block is parseable with json.loads() and the XML block with XML ElementTree.
 When using tools, ensure to only use the tools provided and not make up any data and do not provide any explanation as to which tool you are using and why.
 
-When asked for the weather, lookup the weather for the current location of the car. Unless the user provides a location, then use that location.
-If asked about points of interest, use the tools available to you. Do not make up points of interest.
+Example 1:
+User: How is the weather today?
+Assistant:
+<tool_call>
+{{"arguments": {{"location": ""}}, "name": "get_weather"}}
+</tool_call>
+
+Example 2:
+User: Is there a Spa nearby?
+Assistant:
+<tool_call>
+{{"arguments": {{"search_query": "Spa"}}, "name": "search_points_of_interests"}}
+</tool_call>
+
+When asked for the weather or points of interest, use the appropriate tool with the current location of the car. Unless the user provides a location, then use that location.
+
 
 Use the following pydantic model json schema for each tool call you will make:
 {schema}
@@ -83,7 +97,7 @@ HRMS_TEMPLATE_TOOL_RESULT = """
 <|im_end|>"""
 
 
-def append_message(prompt, h):     
+def append_message(prompt, h):
     if h.type == "human":
         prompt += HRMS_TEMPLATE_USER.format(user_input=h.content)
     elif h.type == "ai":
@@ -99,11 +113,15 @@ def get_prompt(template, history, tools, schema, car_status=None):
         car_status = vehicle_status()[0]
 
     # "vehicle_status": vehicle_status_fn()[0]
-    kwargs = {"history": history, "schema": schema, "tools": tools, "car_status": car_status}
+    kwargs = {
+        "history": history,
+        "schema": schema,
+        "tools": tools,
+        "car_status": car_status,
+    }
 
-    
     prompt = template.format(**kwargs).replace("{{", "{").replace("}}", "}")
-    
+
     if history:
         for h in history.messages:
             prompt = append_message(prompt, h)
@@ -124,7 +142,7 @@ def use_tool(tool_call, tools):
 
 def parse_tool_calls(text):
     logger.debug(f"Start parsing tool_calls: {text}")
-    pattern = r'<tool_call>\s*(\{.*?\})\s*</tool_call>'
+    pattern = r"<tool_call>\s*(\{.*?\})\s*</tool_call>"
 
     if not text.startswith("<tool_call>"):
         return [], []
@@ -138,7 +156,7 @@ def parse_tool_calls(text):
             tool_calls.append(tool_call)
         except json.JSONDecodeError as e:
             errors.append(f"Invalid JSON in tool call: {e}")
-    
+
     logger.debug(f"Tool calls: {tool_calls}, errors: {errors}")
     return tool_calls, errors
 
@@ -149,7 +167,7 @@ def process_response(user_query, res, history, tools, depth):
     tool_calls, errors = parse_tool_calls(res)
     # TODO: Handle errors
     if not tool_calls:
-        return False
+        return False, tool_calls, errors
     # tool_results = ""
     tool_results = f"Agent iteration {depth} to assist with user query: {user_query}\n"
     for tool_call in tool_calls:
@@ -157,7 +175,7 @@ def process_response(user_query, res, history, tools, depth):
         # Call the function
         try:
             result = use_tool(tool_call, tools)
-            if type(result) == tuple:
+            if isinstance(result, tuple):
                 result = result[1]
             tool_results += f"<tool_response>\n{result}\n</tool_response>\n"
         except Exception as e:
@@ -169,7 +187,7 @@ def process_response(user_query, res, history, tools, depth):
     print(f"Tool results: {tool_results}")
     tool_call_id = uuid.uuid4().hex
     history.add_message(ToolMessage(content=tool_results, tool_call_id=tool_call_id))
-    return True
+    return True, tool_calls, errors
 
 
 def run_inference_step(history, tools, schema_json, dry_run=False):
@@ -188,12 +206,13 @@ def run_inference_step(history, tools, schema_json, dry_run=False):
         # "model": "NousResearch/Hermes-2-Pro-Llama-3-8B",
         "model": "interstellarninja/hermes-2-pro-llama-3-8b",
         "raw": True,
-        "options": {"temperature": 0.8,
-                    # "max_tokens": 1500,
-                    "num_predict": 1500,
-                    # "num_predict": 1500,
-                # "max_tokens": 1500,
-        }
+        "options": {
+            "temperature": 0.8,
+            # "max_tokens": 1500,
+            "num_predict": 1500,
+            # "num_predict": 1500,
+            # "max_tokens": 1500,
+        },
     }
 
     if dry_run:
@@ -201,7 +220,7 @@ def run_inference_step(history, tools, schema_json, dry_run=False):
         return "Didn't really run it."
 
     out = ollama.generate(**data)
-
+    logger.debug(f"Response from model: {out}")
     res = out["response"]
 
     return res
@@ -213,7 +232,15 @@ def process_query(user_query: str, history: ChatMessageHistory, tools):
         out = run_inference_step(history, tools, schema_json)
         print(f"Inference step result:\n{out}\n------------------\n")
         history.add_message(AIMessage(content=out))
-        if not process_response(user_query, out, history, tools, depth):
+        to_continue, tool_calls, errors = process_response(
+            user_query, out, history, tools, depth
+        )
+        if errors:
+            history.add_message(
+                AIMessage(content=f"Errors in tool calls: {errors}")
+            )
+
+        if not to_continue:
             print(f"This is the answer, no more iterations: {out}")
             return out
         # Otherwise, tools result is already added to history, we just need to continue the loop.
