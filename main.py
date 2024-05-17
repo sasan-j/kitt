@@ -11,6 +11,10 @@ from kitt.skills.routing import calculate_route
 import ollama
 
 from langchain.tools.base import StructuredTool
+from langchain.memory import ChatMessageHistory
+from langchain_core.utils.function_calling import convert_to_openai_function
+from loguru import logger
+
 
 from kitt.skills import (
     get_weather,
@@ -21,9 +25,12 @@ from kitt.skills import (
     search_along_route_w_coordinates,
     do_anything_else,
     date_time_info,
+    get_weather_current_location
 )
 from kitt.skills import extract_func_args
 from kitt.core import voice_options, tts_gradio
+from kitt.core.model import process_query
+from kitt.core import utils as kitt_utils
 
 
 global_context = {
@@ -33,6 +40,7 @@ global_context = {
 }
 
 speaker_embedding_cache = {}
+history = ChatMessageHistory()
 
 MODEL_FUNC = "nexusraven"
 MODEL_GENERAL = "llama3:instruct"
@@ -111,11 +119,12 @@ def get_vehicle_status(state):
 tools = [
     StructuredTool.from_function(get_weather),
     StructuredTool.from_function(find_route),
-    # StructuredTool.from_function(vehicle_status),
+    StructuredTool.from_function(vehicle_status_fn),
     StructuredTool.from_function(search_points_of_interests),
     StructuredTool.from_function(search_along_route),
     StructuredTool.from_function(date_time_info),
-    StructuredTool.from_function(do_anything_else),
+    StructuredTool.from_function(get_weather_current_location),
+    # StructuredTool.from_function(do_anything_else),
 ]
 
 
@@ -132,6 +141,9 @@ def run_generic_model(query):
     out = ollama.generate(**data)
     return out["response"]
 
+
+def clear_history():
+    history.clear()
 
 
 def run_nexusraven_model(query, voice_character):
@@ -169,36 +181,13 @@ def run_nexusraven_model(query, voice_character):
 
 
 def run_llama3_model(query, voice_character):
-    global_context["prompt"] = get_prompt(RAVEN_PROMPT_FUNC, query, "", tools)
-    print("Prompt: ", global_context["prompt"])
-    data = {
-        "prompt": global_context["prompt"],
-        # "streaming": False,
-        # "model": "smangrul/llama-3-8b-instruct-function-calling",
-        "model": "elvee/hermes-2-pro-llama-3:8b-Q5_K_M",
-        "raw": True,
-        "options": {"temperature": 0.5, "stop": ["\nReflection:", "\nThought:"]},
-    }
-    out = ollama.generate(**data)
-    llm_response = out["response"]
-    if "Call: " in llm_response:
-        print(f"llm_response: {llm_response}")
-        llm_response = llm_response.replace("<bot_end>", " ")
-        func_name, kwargs = extract_func_args(llm_response)
-        print(f"Function: {func_name}, Args: {kwargs}")
-        if func_name == "do_anything_else":
-            output_text = run_generic_model(query)
-        else:
-            output_text = use_tool(func_name, kwargs, tools)
-    else:
-        output_text = out["response"]
-
-    if type(output_text) == tuple:
-        output_text = output_text[0]
+    output_text = process_query(query, history, tools)
     gr.Info(f"Output text: {output_text}, generating voice output...")
+    # voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
+    voice_out = None
     return (
         output_text,
-        tts_gradio(output_text, voice_character, speaker_embedding_cache)[0],
+        voice_out,
     )
 
 
@@ -216,22 +205,28 @@ def run_model(query, voice_character, state):
 
 
 def calculate_route_gradio(origin, destination):
-    plot, vehicle_status, points = calculate_route(origin, destination)
+    vehicle_status, points = calculate_route(origin, destination)
+    plot = kitt_utils.plot_route(points, vehicle=vehicle.location_coordinates)
     global_context["route_points"] = points
     vehicle.location_coordinates = points[0]["latitude"], points[0]["longitude"]
-    return plot, vehicle_status
+    return plot, vehicle_status, 0
 
 
-def update_vehicle_status(trip_progress):
+def update_vehicle_status(trip_progress, origin, destination):
+    if not global_context["route_points"]:
+        vehicle_status, points = calculate_route(origin, destination)
+        global_context["route_points"] = points
     n_points = len(global_context["route_points"])
-    new_coords = global_context["route_points"][
-        min(int(trip_progress / 100 * n_points), n_points - 1)
-    ]
+    index = min(int(trip_progress / 100 * n_points), n_points - 1)
+    print(f"Trip progress: {trip_progress} len: {n_points}, index: {index}")
+    new_coords = global_context["route_points"][index]
     new_coords = new_coords["latitude"], new_coords["longitude"]
     print(f"Trip progress: {trip_progress}, len: {n_points}, new_coords: {new_coords}")
     vehicle.location_coordinates = new_coords
     vehicle.location = ""
-    return vehicle.model_dump_json()
+
+    plot = kitt_utils.plot_route(global_context["route_points"], vehicle=vehicle.location_coordinates)
+    return vehicle.model_dump_json(), plot
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -278,7 +273,7 @@ def save_and_transcribe_audio(audio):
 # What's the closest restaurant from here?
 
 
-def create_demo(tts_server: bool = False, model="llama3"):
+def create_demo(tts_server: bool = False, model="llama3", tts=True):
     print(f"Running the demo with model: {model} and TTSServer: {tts_server}")
     with gr.Blocks(theme=gr.themes.Default()) as demo:
         state = gr.State(
@@ -287,6 +282,7 @@ def create_demo(tts_server: bool = False, model="llama3"):
                 "query": "",
                 "route_points": [],
                 "model": model,
+                "tts": tts,
             }
         )
         trip_points = gr.State(value=[])
@@ -344,6 +340,8 @@ def create_demo(tts_server: bool = False, model="llama3"):
                 vehicle_status = gr.JSON(
                     value=vehicle.model_dump_json(), label="Vehicle status"
                 )
+                # Push button
+                clear_history_btn = gr.Button(value="Clear History")
             with gr.Column():
                 output_audio = gr.Audio(label="output audio", autoplay=True)
                 output_text = gr.TextArea(
@@ -355,12 +353,12 @@ def create_demo(tts_server: bool = False, model="llama3"):
         origin.submit(
             fn=calculate_route_gradio,
             inputs=[origin, destination],
-            outputs=[map_plot, vehicle_status],
+            outputs=[map_plot, vehicle_status, trip_progress],
         )
         destination.submit(
             fn=calculate_route_gradio,
             inputs=[origin, destination],
-            outputs=[map_plot, vehicle_status],
+            outputs=[map_plot, vehicle_status, trip_progress],
         )
 
         # Update time based on the time picker
@@ -375,13 +373,17 @@ def create_demo(tts_server: bool = False, model="llama3"):
 
         # Set the vehicle status based on the trip progress
         trip_progress.release(
-            fn=update_vehicle_status, inputs=[trip_progress], outputs=[vehicle_status]
+            fn=update_vehicle_status, inputs=[trip_progress, origin, destination], outputs=[vehicle_status, map_plot]
         )
 
         # Save and transcribe the audio
         input_audio.stop_recording(
             fn=save_and_transcribe_audio, inputs=[input_audio], outputs=[input_text]
         )
+
+        # Clear the history
+        clear_history_btn.click(fn=clear_history, inputs=[], outputs=[])
+
     return demo
 
 
@@ -389,7 +391,7 @@ def create_demo(tts_server: bool = False, model="llama3"):
 gr.close_all()
 
 
-demo = create_demo(False, "llama3")
+demo = create_demo(False, "llama3", tts=False)
 demo.launch(
     debug=True,
     server_name="0.0.0.0",

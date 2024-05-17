@@ -2,8 +2,11 @@ from .common import vehicle
 
 
 STATUS_TEMPLATE = """
-We are at {location}, coordinates: {lat}, {lon},
-current time: {time}, current date: {date} and our destination is: {destination}.
+The current location is:{location}
+The current Geo coordinates: {lat}, {lon}
+The current time: {time}
+The current date: {date}
+The current destination is: {destination}
 """
 
 

@@ -3,12 +3,32 @@ import requests
 from .common import config, vehicle
 
 
+def get_weather_current_location():
+    """
+    Returns the CURRENT weather in current location.
+    When responding to user, only mention the weather condition, temperature, and the temperature that it feels like, unless the user asks for more information.
+
+    Returns:
+        dict: The weather data in the specified location.
+    """
+    print(
+        f"get_weather: location is empty, using the vehicle location. ({vehicle.location})"
+    )
+    location = vehicle.location
+    return get_weather(location)
+
+
 # current weather API
 def get_weather(location: str = ""):
     """
-    Returns the CURRENT weather in a specified location.
+    Get the current weather in a specified location.
+    When responding to user, only mention the weather condition, temperature, and the temperature that it feels like, unless the user asks for more information.
+
     Args:
-    location (string) : Required. The name of the location, could be a city or lat/longitude in the following format latitude,longitude (example: 37.7749,-122.4194). If the location is not specified, the function will return the weather in the current location.
+        location (string) : Optional. The name of the location, if empty, the vehicle location is used.
+
+    Returns:
+        dict: The weather data in the specified location.
     """
 
     if location == "":
@@ -56,10 +76,10 @@ def get_weather(location: str = ""):
 # weather forecast API
 def get_forecast(city_name: str = "", when=0, **kwargs):
     """
-    Returns the weather forecast in a specified number of days for a specified city .
+    Get the weather forecast in a specified number of days for a specified location.
     Args:
-    city_name (string) : Required. The name of the city.
-    when (int) : Required. in number of days (until the day for which we want to know the forecast) (example: tomorrow is 1, in two days is 2, etc.)
+        city_name (string) : Required. The name of the city.
+        when (int) : Required. in number of days (until the day for which we want to know the forecast) (example: tomorrow is 1, in two days is 2, etc.)
     """
 
     when += 1

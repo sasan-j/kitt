@@ -17,31 +17,6 @@ def find_coordinates(address):
     return lat, lon
 
 
-def plot_route(points):
-    import plotly.express as px
-
-    lats = []
-    lons = []
-
-    for point in points:
-        lats.append(point["latitude"])
-        lons.append(point["longitude"])
-    # fig = px.line_geo(lat=lats, lon=lons)
-    # fig.update_geos(fitbounds="locations")
-
-    fig = px.line_mapbox(
-        lat=lats, lon=lons, zoom=12, height=600, color_discrete_sequence=["red"]
-    )
-
-    fig.update_layout(
-        mapbox_style="open-street-map",
-        # mapbox_zoom=12,
-    )
-    fig.update_geos(fitbounds="locations")
-    fig.update_layout(margin={"r": 20, "t": 20, "l": 20, "b": 20})
-    return fig
-
-
 def calculate_route(origin, destination):
     """This function is called when the origin or destination is updated in the GUI. It calculates the route between the origin and destination."""
     print(f"calculate_route(origin: {origin}, destination: {destination})")
@@ -64,7 +39,7 @@ def calculate_route(origin, destination):
     data = response.json()
     points = data["routes"][0]["legs"][0]["points"]
 
-    return plot_route(points), vehicle.model_dump_json(), points
+    return vehicle.model_dump_json(), points
 
 
 def find_route_tomtom(
