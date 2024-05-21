@@ -1,7 +1,8 @@
-from .common import vehicle
+from .common import vehicle, Speed
 
 
-STATUS_TEMPLATE = """The current location is: {location} ({lat}, {lon})
+STATUS_TEMPLATE = """The current location is: {location} 
+Current coordinates: {lat}, {lon}
 The current date and time: {date} {time}
 The current destination is: {destination}"""
 
@@ -32,3 +33,21 @@ def vehicle_status() -> tuple[str, dict[str, str]]:
     vs["lat"] = vs["location_coordinates"][0]
     vs["lon"] = vs["location_coordinates"][1]
     return  STATUS_TEMPLATE.format(**vs), vs
+
+
+
+def set_vehicle_speed(speed: Speed):
+    """Set the speed of the vehicle.
+    Args:
+        speed (Speed): The speed of the vehicle. ("slow", "fast")
+    """
+    vehicle.speed = speed
+    return f"The vehicle speed is set to {speed.value}."
+
+def set_vehicle_destination(destination: str):
+    """Set the destination of the vehicle.
+    Args:
+        destination (str): The destination of the vehicle.
+    """
+    vehicle.destination = destination
+    return f"The vehicle destination is set to {destination}."

@@ -1,17 +1,24 @@
 import re
-from typing import Union
+from typing import Union, Optional
 
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import BaseModel
 
 from .. import skills
+from enum import Enum
 
 class Settings(BaseSettings):
     WEATHER_API_KEY: str
     TOMTOM_API_KEY: str
+    REPLICATE_API_KEY: Optional[str]
 
     model_config = SettingsConfigDict(env_file=".env")
+
+
+class Speed(Enum):
+        SLOW = "slow"
+        FAST = "fast"
 
 
 class VehicleStatus(BaseModel):
@@ -20,6 +27,8 @@ class VehicleStatus(BaseModel):
     date: str
     time: str
     destination: str
+    speed: Speed = Speed.SLOW
+    
 
 
 def execute_function_call(text: str, dry_run=False) -> str:

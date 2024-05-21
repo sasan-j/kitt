@@ -12,6 +12,7 @@ from loguru import logger
 
 
 from kitt.skills import vehicle_status
+from kitt.skills.common import config
 
 
 class FunctionCall(BaseModel):
@@ -29,7 +30,7 @@ class FunctionCall(BaseModel):
 
 schema_json = json.loads(FunctionCall.schema_json())
 HRMS_SYSTEM_PROMPT = """<|im_start|>system
-You are a function calling AI agent with self-recursion.
+You are a function calling AI agent. Your name is KITT. You are embodied in a Car. You know where you are, where you are going, and the current date and time. You can call functions to help with user queries.
 You can call only one function at a time and analyse data you get from function response.
 You are provided with function signatures within <tools></tools> XML tags.
 
@@ -53,7 +54,7 @@ Make sure that the json object above with code markdown block is parseable with 
 When using tools, ensure to only use the tools provided and not make up any data and do not provide any explanation as to which tool you are using and why.
 
 Example 1:
-User: How is the weather today?
+User: How is the weather?
 Assistant:
 <tool_call>
 {{"arguments": {{"location": ""}}, "name": "get_weather"}}
@@ -206,14 +207,7 @@ def process_response(user_query, res, history, tools, depth):
     return True, tool_calls, errors
 
 
-def run_inference_step(depth, history, tools, schema_json, dry_run=False):
-    # If we decide to call a function, we need to generate the prompt for the model
-    # based on the history of the conversation so far.
-    # not break the loop
-    openai_tools = [convert_to_openai_function(tool) for tool in tools]
-    prompt = get_prompt(HRMS_SYSTEM_PROMPT, history, openai_tools, schema_json)
-    print(f"Prompt is:{prompt + AI_PREAMBLE}\n------------------\n")
-
+def run_inference_ollama(prompt):
     data = {
         "prompt": prompt
         + "\nThis is the first turn and you don't have <tool_results> to analyze yet"
@@ -230,37 +224,86 @@ def run_inference_step(depth, history, tools, schema_json, dry_run=False):
             "temperature": 0.8,
             # "max_tokens": 1500,
             "num_predict": 1500,
-            "mirostat": 1,
+            # "mirostat": 1,
             # "mirostat_tau": 2,
-            "repeat_penalty": 1.5,
+            "repeat_penalty": 1.1,
             "top_k": 25,
             "top_p": 0.5,
+            "num_ctx": 8000,
             # "num_predict": 1500,
             # "max_tokens": 1500,
         },
     }
 
-    if dry_run:
-        print(prompt + AI_PREAMBLE)
-        return "Didn't really run it."
-    
-    client = Client(host='http://localhost:11444')
+    client = Client(host="http://localhost:11434")
     # out = ollama.generate(**data)
     out = client.generate(**data)
-    logger.debug(f"Response from model: {out}")
-    res = out["response"]
-
+    res = out.pop("response")
+    # Report prompt and eval tokens
+    logger.warning(
+        f"Prompt tokens: {out.get('prompt_eval_count')}, Response tokens: {out.get('eval_count')}"
+    )
+    logger.debug(f"Response from Ollama: {res}\nOut:{out}")
     return res
 
 
-def process_query(user_query: str, history: ChatMessageHistory, tools):
-    # Add vehicle status to the history
-    user_query_status = (
-        f"Given that:\n{vehicle_status()[0]}\nAnswer the following:\n{user_query}"
+def run_inference_step(
+    depth, history, tools, schema_json, dry_run=False, backend="ollama"
+):
+    # If we decide to call a function, we need to generate the prompt for the model
+    # based on the history of the conversation so far.
+    # not break the loop
+    openai_tools = [convert_to_openai_function(tool) for tool in tools]
+    prompt = get_prompt(HRMS_SYSTEM_PROMPT, history, openai_tools, schema_json)
+    print(f"Prompt is:{prompt + AI_PREAMBLE}\n------------------\n")
+
+    if backend == "ollama":
+        output = run_inference_ollama(prompt)
+    else:
+        output = run_inference_replicate(prompt)
+
+    logger.debug(f"Response from model: {output}")
+    return output
+
+
+def run_inference_replicate(prompt):
+    from replicate import Client
+
+    replicate = Client(api_token=config.REPLICATE_API_KEY)
+
+    input = {
+        "prompt": prompt
+        + "\nThis is the first turn and you don't have <tool_results> to analyze yet"
+        + AI_PREAMBLE,
+        "temperature": 0.5,
+        "system_prompt": "",
+        "max_new_tokens": 1024,
+        "repeat_penalty": 1.1,
+        "prompt_template": "{prompt}",
+    }
+
+    output = replicate.run(
+        "mikeei/dolphin-2.9-llama3-8b-gguf:0f79fb14c45ae2b92e1f07d872dceed3afafcacd903258df487d3bec9e393cb2",
+        input=input,
     )
+    out = "".join(output)
+
+    return out
+
+
+def process_query(
+    user_query: str,
+    history: ChatMessageHistory,
+    user_preferences,
+    tools,
+    backend="ollama",
+):
+    # Add vehicle status to the history
+    user_query_status = f"Given that:\n{vehicle_status()[0]}\nUser preferences:\n{user_preferences}\nAnswer the following:\n{user_query}"
     history.add_message(HumanMessage(content=user_query_status))
     for depth in range(10):
-        out = run_inference_step(depth, history, tools, schema_json)
+        # out = run_inference_step(depth, history, tools, schema_json)
+        out = run_inference_step(depth, history, tools, schema_json, backend=backend)
         print(f"Inference step result:\n{out}\n------------------\n")
         history.add_message(AIMessage(content=out))
         to_continue, tool_calls, errors = process_response(

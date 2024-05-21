@@ -1,4 +1,5 @@
 import requests
+from loguru import logger
 
 from .common import config, vehicle
 
@@ -19,27 +20,26 @@ def get_weather_current_location():
 
 
 # current weather API
-def get_weather(location: str = ""):
+def get_weather(location: str = "here"):
     """
     Get the current weather in a specified location.
     When responding to user, only mention the weather condition, temperature, and the temperature that it feels like, unless the user asks for more information.
 
     Args:
-        location (string) : Optional. The name of the location, if empty, the vehicle location is used.
+        location (string) : Optional. The name of the location, if empty or here, the vehicle location is used.
 
     Returns:
         dict: The weather data in the specified location.
     """
 
-    if location == "":
-        print(
+    if location == "" or location == "here":
+        logger.warning(
             f"get_weather: location is empty, using the vehicle location. ({vehicle.location})"
         )
         location = vehicle.location
 
     # The endpoint URL provided by WeatherAPI
     url = f"http://api.weatherapi.com/v1/current.json?key={config.WEATHER_API_KEY}&q={location}&aqi=no"
-    print(url)
 
     # Make the API request
     response = requests.get(url)

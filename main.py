@@ -21,8 +21,10 @@ from kitt.skills import (
     find_route,
     get_forecast,
     vehicle_status as vehicle_status_fn,
+    set_vehicle_speed,
     search_points_of_interests,
     search_along_route_w_coordinates,
+    set_vehicle_destination,
     do_anything_else,
     date_time_info,
     get_weather_current_location,
@@ -120,11 +122,12 @@ def get_vehicle_status(state):
 tools = [
     StructuredTool.from_function(get_weather),
     StructuredTool.from_function(find_route),
-    StructuredTool.from_function(vehicle_status_fn),
+    # StructuredTool.from_function(vehicle_status_fn),
+    StructuredTool.from_function(set_vehicle_speed),
     StructuredTool.from_function(search_points_of_interests),
     StructuredTool.from_function(search_along_route),
-    StructuredTool.from_function(date_time_info),
-    StructuredTool.from_function(get_weather_current_location),
+    # StructuredTool.from_function(date_time_info),
+    # StructuredTool.from_function(get_weather_current_location),
     StructuredTool.from_function(code_interpreter),
     # StructuredTool.from_function(do_anything_else),
 ]
@@ -148,7 +151,7 @@ def clear_history():
     history.clear()
 
 
-def run_nexusraven_model(query, voice_character):
+def run_nexusraven_model(query, voice_character, state):
     global_context["prompt"] = get_prompt(RAVEN_PROMPT_FUNC, query, "", tools)
     print("Prompt: ", global_context["prompt"])
     data = {
@@ -182,11 +185,18 @@ def run_nexusraven_model(query, voice_character):
     )
 
 
-def run_llama3_model(query, voice_character):
-    output_text = process_query(query, history, tools)
+def run_llama3_model(query, voice_character, state):
+    output_text = process_query(
+        query,
+        history=history,
+        user_preferences=state["user_preferences"],
+        tools=tools,
+        backend=state["llm_backend"],
+    )
     gr.Info(f"Output text: {output_text}, generating voice output...")
-    # voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
     voice_out = None
+    if state["tts_enabled"]:
+        voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
     return (
         output_text,
         voice_out,
@@ -196,15 +206,17 @@ def run_llama3_model(query, voice_character):
 def run_model(query, voice_character, state):
     model = state.get("model", "nexusraven")
     query = query.strip().replace("'", "")
-    print("Query: ", query)
-    print("Model: ", model)
+    logger.info(
+        f"Running model: {model} with query: {query}, voice_character: {voice_character} and llm_backend: {state['llm_backend']}, tts_enabled: {state['tts_enabled']}"
+    )
     global_context["query"] = query
     if model == "nexusraven":
-        return run_nexusraven_model(query, voice_character)
+        text, voice = run_nexusraven_model(query, voice_character, state)
     elif model == "llama3":
-        return run_llama3_model(query, voice_character)
-    return "Error running model", None
-    
+        text, voice = run_llama3_model(query, voice_character, state)
+    else:
+        text, voice = "Error running model", None
+    return text, voice, vehicle.model_dump_json()
 
 
 def calculate_route_gradio(origin, destination):
@@ -276,6 +288,32 @@ def save_and_transcribe_run_model(audio, voice_character, state):
     out_text, out_voice = run_model(text, voice_character, state)
     return text, out_text, out_voice
 
+
+def set_tts_enabled(tts_enabled, state):
+    new_tts_enabled = tts_enabled == "Yes"
+    logger.info(
+        f"TTS enabled was {state['tts_enabled']} and changed to {new_tts_enabled}"
+    )
+    state["tts_enabled"] = new_tts_enabled
+    return state
+
+
+def set_llm_backend(llm_backend, state):
+    new_llm_backend = "ollama" if llm_backend == "Ollama" else "replicate"
+    logger.info(
+        f"LLM backend was {state['llm_backend']} and changed to {new_llm_backend}"
+    )
+    state["llm_backend"] = new_llm_backend
+    return state
+
+
+def set_user_preferences(preferences, state):
+    new_preferences = preferences
+    logger.info(f"User preferences changed to: {new_preferences}")
+    state["user_preferences"] = new_preferences
+    return state
+
+
 # to be able to use the microphone on chrome, you will have to go to chrome://flags/#unsafely-treat-insecure-origin-as-secure and enter http://10.186.115.21:7860/
 # in "Insecure origins treated as secure", enable it and relaunch chrome
 
@@ -284,7 +322,7 @@ def save_and_transcribe_run_model(audio, voice_character, state):
 # What's the closest restaurant from here?
 
 
-def create_demo(tts_server: bool = False, model="llama3", tts=True):
+def create_demo(tts_server: bool = False, model="llama3", tts_enabled: bool = True):
     print(f"Running the demo with model: {model} and TTSServer: {tts_server}")
     with gr.Blocks(theme=gr.themes.Default()) as demo:
         state = gr.State(
@@ -293,7 +331,9 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
                 "query": "",
                 "route_points": [],
                 "model": model,
-                "tts": tts,
+                "tts_enabled": tts_enabled,
+                "llm_backend": "Ollama",
+                "user_preferences": "",
             }
         )
         trip_points = gr.State(value=[])
@@ -326,6 +366,12 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
                 destination = gr.Textbox(
                     value="Rue Alphonse Weicker, Luxembourg",
                     label="Destination",
+                    interactive=True,
+                )
+                preferences = gr.Textbox(
+                    value="I love italian food\nI like doing sports",
+                    label="User preferences",
+                    lines=3,
                     interactive=True,
                 )
 
@@ -363,6 +409,19 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
                 vehicle_status = gr.JSON(
                     value=vehicle.model_dump_json(), label="Vehicle status"
                 )
+                with gr.Accordion("Config"):
+                    tts_enabled = gr.Radio(
+                        choices=["Yes", "No"],
+                        label="Enable TTS",
+                        value="No",
+                        interactive=True,
+                    )
+                    llm_backend = gr.Radio(
+                        choices=["Ollama", "Replicate"],
+                        label="LLM Backend",
+                        value="Ollama",
+                        interactive=True,
+                    )
                 # Push button
                 clear_history_btn = gr.Button(value="Clear History")
             with gr.Column():
@@ -383,6 +442,9 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
             inputs=[origin, destination],
             outputs=[map_plot, vehicle_status, trip_progress],
         )
+        preferences.submit(
+            fn=set_user_preferences, inputs=[preferences, state], outputs=[state]
+        )
 
         # Update time based on the time picker
         time_picker.select(fn=set_time, inputs=[time_picker], outputs=[vehicle_status])
@@ -391,12 +453,12 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
         input_text.submit(
             fn=run_model,
             inputs=[input_text, voice_character, state],
-            outputs=[output_text, output_audio],
+            outputs=[output_text, output_audio, vehicle_status],
         )
         input_text_debug.submit(
             fn=run_model,
-            inputs=[input_text, voice_character, state],
-            outputs=[output_text, output_audio],
+            inputs=[input_text_debug, voice_character, state],
+            outputs=[output_text, output_audio, vehicle_status],
         )
 
         # Set the vehicle status based on the trip progress
@@ -408,15 +470,26 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
 
         # Save and transcribe the audio
         input_audio.stop_recording(
-            fn=save_and_transcribe_run_model, inputs=[input_audio, voice_character, state], outputs=[input_text, output_text, output_audio]
+            fn=save_and_transcribe_run_model,
+            inputs=[input_audio, voice_character, state],
+            outputs=[input_text, output_text, output_audio],
         )
         input_audio_debug.stop_recording(
-            fn=save_and_transcribe_audio, inputs=[input_audio_debug], outputs=[input_text_debug]
+            fn=save_and_transcribe_audio,
+            inputs=[input_audio_debug],
+            outputs=[input_text_debug],
         )
 
         # Clear the history
         clear_history_btn.click(fn=clear_history, inputs=[], outputs=[])
 
+        # Config
+        tts_enabled.change(
+            fn=set_tts_enabled, inputs=[tts_enabled, state], outputs=[state]
+        )
+        llm_backend.change(
+            fn=set_llm_backend, inputs=[llm_backend, state], outputs=[state]
+        )
     return demo
 
 
@@ -424,7 +497,7 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
 gr.close_all()
 
 
-demo = create_demo(False, "llama3", tts=False)
+demo = create_demo(False, "llama3", tts_enabled=False)
 demo.launch(
     debug=True,
     server_name="0.0.0.0",
