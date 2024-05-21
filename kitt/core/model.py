@@ -6,6 +6,7 @@ from langchain.memory import ChatMessageHistory
 from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
 from langchain_core.utils.function_calling import convert_to_openai_function
 import ollama
+from ollama import Client
 from pydantic import BaseModel
 from loguru import logger
 
@@ -27,12 +28,10 @@ class FunctionCall(BaseModel):
 
 
 schema_json = json.loads(FunctionCall.schema_json())
-HRMS_SYSTEM_PROMPT = """<|begin_of_text|>
-<|im_start|>system
+HRMS_SYSTEM_PROMPT = """<|im_start|>system
 You are a function calling AI agent with self-recursion.
 You can call only one function at a time and analyse data you get from function response.
 You are provided with function signatures within <tools></tools> XML tags.
-{car_status}
 
 You may use agentic frameworks for reasoning and planning to help with user query.
 Please call a function and wait for function results to be provided to you in the next iteration.
@@ -67,8 +66,14 @@ Assistant:
 {{"arguments": {{"search_query": "Spa"}}, "name": "search_points_of_interests"}}
 </tool_call>
 
-When asked for the weather or points of interest, use the appropriate tool with the current location of the car. Unless the user provides a location, then use that location.
+Example 3:
+User: How long will it take to get to the destination?
+Assistant:
+<tool_call>
+{{"arguments": {{"destination": ""}}, "name": "calculate_route"}}
 
+When asked for the weather or points of interest, use the appropriate tool with the current location of the car. Unless the user provides a location, then use that location.
+Always assume user wants to travel by car.
 
 Use the following pydantic model json schema for each tool call you will make:
 {schema}
@@ -145,6 +150,8 @@ def parse_tool_calls(text):
     pattern = r"<tool_call>\s*(\{.*?\})\s*</tool_call>"
 
     if not text.startswith("<tool_call>"):
+        if "<tool_call>" in text:
+            raise ValueError("<text_and_tool_call>")
         return [], []
 
     matches = re.findall(pattern, text, re.DOTALL)
@@ -164,12 +171,22 @@ def parse_tool_calls(text):
 def process_response(user_query, res, history, tools, depth):
     """Returns True if the response contains tool calls, False otherwise."""
     logger.debug(f"Processing response: {res}")
-    tool_calls, errors = parse_tool_calls(res)
+    tool_results = f"Agent iteration {depth} to assist with user query: {user_query}\n"
+    tool_call_id = uuid.uuid4().hex
+    try:
+        tool_calls, errors = parse_tool_calls(res)
+    except ValueError as e:
+        if "<text_and_tool_call>" in str(e):
+            tool_results += f"A mix of text and tool_call was found, you must either answer the query in a short sentence or use tool_call not both. Try again, this time only using tool_call."
+            history.add_message(
+                ToolMessage(content=tool_results, tool_call_id=tool_call_id)
+            )
+            return True, [], []
     # TODO: Handle errors
     if not tool_calls:
         return False, tool_calls, errors
     # tool_results = ""
-    tool_results = f"Agent iteration {depth} to assist with user query: {user_query}\n"
+
     for tool_call in tool_calls:
         # TODO: Extra Validation
         # Call the function
@@ -185,12 +202,11 @@ def process_response(user_query, res, history, tools, depth):
 
     tool_results = tool_results.strip()
     print(f"Tool results: {tool_results}")
-    tool_call_id = uuid.uuid4().hex
     history.add_message(ToolMessage(content=tool_results, tool_call_id=tool_call_id))
     return True, tool_calls, errors
 
 
-def run_inference_step(history, tools, schema_json, dry_run=False):
+def run_inference_step(depth, history, tools, schema_json, dry_run=False):
     # If we decide to call a function, we need to generate the prompt for the model
     # based on the history of the conversation so far.
     # not break the loop
@@ -199,17 +215,26 @@ def run_inference_step(history, tools, schema_json, dry_run=False):
     print(f"Prompt is:{prompt + AI_PREAMBLE}\n------------------\n")
 
     data = {
-        "prompt": prompt + AI_PREAMBLE,
+        "prompt": prompt
+        + "\nThis is the first turn and you don't have <tool_results> to analyze yet"
+        + AI_PREAMBLE,
         # "streaming": False,
         # "model": "smangrul/llama-3-8b-instruct-function-calling",
         # "model": "elvee/hermes-2-pro-llama-3:8b-Q5_K_M",
         # "model": "NousResearch/Hermes-2-Pro-Llama-3-8B",
-        "model": "interstellarninja/hermes-2-pro-llama-3-8b",
+        # "model": "interstellarninja/hermes-2-pro-llama-3-8b",
+        "model": "dolphin-llama3:8b",
+        # "model": "dolphin-llama3:70b",
         "raw": True,
         "options": {
             "temperature": 0.8,
             # "max_tokens": 1500,
             "num_predict": 1500,
+            "mirostat": 1,
+            # "mirostat_tau": 2,
+            "repeat_penalty": 1.5,
+            "top_k": 25,
+            "top_p": 0.5,
             # "num_predict": 1500,
             # "max_tokens": 1500,
         },
@@ -218,8 +243,10 @@ def run_inference_step(history, tools, schema_json, dry_run=False):
     if dry_run:
         print(prompt + AI_PREAMBLE)
         return "Didn't really run it."
-
-    out = ollama.generate(**data)
+    
+    client = Client(host='http://localhost:11444')
+    # out = ollama.generate(**data)
+    out = client.generate(**data)
     logger.debug(f"Response from model: {out}")
     res = out["response"]
 
@@ -227,18 +254,20 @@ def run_inference_step(history, tools, schema_json, dry_run=False):
 
 
 def process_query(user_query: str, history: ChatMessageHistory, tools):
-    history.add_message(HumanMessage(content=user_query))
+    # Add vehicle status to the history
+    user_query_status = (
+        f"Given that:\n{vehicle_status()[0]}\nAnswer the following:\n{user_query}"
+    )
+    history.add_message(HumanMessage(content=user_query_status))
     for depth in range(10):
-        out = run_inference_step(history, tools, schema_json)
+        out = run_inference_step(depth, history, tools, schema_json)
         print(f"Inference step result:\n{out}\n------------------\n")
         history.add_message(AIMessage(content=out))
         to_continue, tool_calls, errors = process_response(
             user_query, out, history, tools, depth
         )
         if errors:
-            history.add_message(
-                AIMessage(content=f"Errors in tool calls: {errors}")
-            )
+            history.add_message(AIMessage(content=f"Errors in tool calls: {errors}"))
 
         if not to_continue:
             print(f"This is the answer, no more iterations: {out}")

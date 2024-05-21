@@ -90,10 +90,41 @@ def find_route_tomtom(
     }, response
 
 
-def find_route(destination=""):
-    """This function finds a route to a destination and returns the distance and the estimated time to go to a specific destination\
- from the current location.
-    :param destination (string): Required. The destination
+def find_route_a_to_b(origin="", destination=""):
+    """Get a route between origin and destination.
+
+    Args:
+    origin (string): Optional. The origin name.
+    destination (string): Optional. The destination name.
+    """
+    if not destination:
+        destination = vehicle.destination
+    lat_dest, lon_dest = find_coordinates(destination)
+    print(f"lat_dest: {lat_dest}, lon_dest: {lon_dest}")
+
+    if not origin:
+        # Extract the latitude and longitude of the vehicle
+        vehicle_coordinates = getattr(vehicle, "location_coordinates")
+        lat_depart, lon_depart = vehicle_coordinates
+    else:
+        lat_depart, lon_depart = find_coordinates(origin)
+    print(f"lat_depart: {lat_depart}, lon_depart: {lon_depart}")
+
+    date = getattr(vehicle, "date")
+    time = getattr(vehicle, "time")
+    departure_time = f"{date}T{time}"
+
+    trip_info, raw_response = find_route_tomtom(
+        lat_depart, lon_depart, lat_dest, lon_dest, departure_time
+    )
+    return _format_tomtom_trip_info(trip_info, destination)
+
+
+def find_route(destination):
+    """Get a route to a destination from the current location of the vehicle.
+
+    Args:
+    destination (string): Optional. The destination name.
     """
     if not destination:
         destination = vehicle.destination
@@ -114,7 +145,13 @@ def find_route(destination=""):
     trip_info, raw_response = find_route_tomtom(
         lat_depart, lon_depart, lat_dest, lon_dest, departure_time
     )
+    return _format_tomtom_trip_info(trip_info, destination)
 
+    
+    # raw_response["routes"][0]["legs"][0]["points"]
+
+
+def _format_tomtom_trip_info(trip_info, destination="destination"):
     distance, duration, arrival_time = (
         trip_info["distance_m"],
         trip_info["duration_s"],
@@ -139,4 +176,3 @@ def find_route(destination=""):
 
     # return the distance and time
     return f"The route to {destination} is {distance_km:.2f} km which takes {time_display}. Leaving now, the arrival time is estimated at {arrival_hour_display}."
-    # raw_response["routes"][0]["legs"][0]["points"]

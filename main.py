@@ -26,6 +26,7 @@ from kitt.skills import (
     do_anything_else,
     date_time_info,
     get_weather_current_location,
+    code_interpreter,
 )
 from kitt.skills import extract_func_args
 from kitt.core import voice_options, tts_gradio
@@ -124,6 +125,7 @@ tools = [
     StructuredTool.from_function(search_along_route),
     StructuredTool.from_function(date_time_info),
     StructuredTool.from_function(get_weather_current_location),
+    StructuredTool.from_function(code_interpreter),
     # StructuredTool.from_function(do_anything_else),
 ]
 
@@ -201,6 +203,8 @@ def run_model(query, voice_character, state):
         return run_nexusraven_model(query, voice_character)
     elif model == "llama3":
         return run_llama3_model(query, voice_character)
+    return "Error running model", None
+    
 
 
 def calculate_route_gradio(origin, destination):
@@ -259,11 +263,18 @@ def save_and_transcribe_audio(audio):
         y = y.astype(np.float32)
         y /= np.max(np.abs(y))
         text = transcriber({"sampling_rate": sr, "raw": y})["text"]
+        gr.Info(f"Transcribed text is: {text}\nProcessing the input...")
+
     except Exception as e:
         print(f"Error: {e}")
-        return "Error transcribing audio"
+        return "Error transcribing audio."
     return text
 
+
+def save_and_transcribe_run_model(audio, voice_character, state):
+    text = save_and_transcribe_audio(audio)
+    out_text, out_voice = run_model(text, voice_character, state)
+    return text, out_text, out_voice
 
 # to be able to use the microphone on chrome, you will have to go to chrome://flags/#unsafely-treat-insecure-origin-as-secure and enter http://10.186.115.21:7860/
 # in "Insecure origins treated as secure", enable it and relaunch chrome
@@ -337,6 +348,18 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
                 input_text = gr.Textbox(
                     value="How is the weather?", label="Input text", interactive=True
                 )
+                with gr.Accordion("Debug"):
+                    input_audio_debug = gr.Audio(
+                        type="numpy",
+                        sources=["microphone"],
+                        label="Input audio",
+                        elem_id="input_audio",
+                    )
+                    input_text_debug = gr.Textbox(
+                        value="How is the weather?",
+                        label="Input text",
+                        interactive=True,
+                    )
                 vehicle_status = gr.JSON(
                     value=vehicle.model_dump_json(), label="Vehicle status"
                 )
@@ -370,6 +393,11 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
             inputs=[input_text, voice_character, state],
             outputs=[output_text, output_audio],
         )
+        input_text_debug.submit(
+            fn=run_model,
+            inputs=[input_text, voice_character, state],
+            outputs=[output_text, output_audio],
+        )
 
         # Set the vehicle status based on the trip progress
         trip_progress.release(
@@ -380,7 +408,10 @@ def create_demo(tts_server: bool = False, model="llama3", tts=True):
 
         # Save and transcribe the audio
         input_audio.stop_recording(
-            fn=save_and_transcribe_audio, inputs=[input_audio], outputs=[input_text]
+            fn=save_and_transcribe_run_model, inputs=[input_audio, voice_character, state], outputs=[input_text, output_text, output_audio]
+        )
+        input_audio_debug.stop_recording(
+            fn=save_and_transcribe_audio, inputs=[input_audio_debug], outputs=[input_text_debug]
         )
 
         # Clear the history

@@ -6,6 +6,7 @@ from .weather import get_weather_current_location, get_weather, get_forecast
 from .routing import find_route
 from .poi import search_points_of_interests, search_along_route_w_coordinates
 from .vehicle import vehicle_status
+from .interpreter import code_interpreter
 
 
 

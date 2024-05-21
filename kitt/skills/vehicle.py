@@ -1,13 +1,9 @@
 from .common import vehicle
 
 
-STATUS_TEMPLATE = """
-The current location is:{location}
-The current Geo coordinates: {lat}, {lon}
-The current time: {time}
-The current date: {date}
-The current destination is: {destination}
-"""
+STATUS_TEMPLATE = """The current location is: {location} ({lat}, {lon})
+The current date and time: {date} {time}
+The current destination is: {destination}"""
 
 
 def vehicle_status() -> tuple[str, dict[str, str]]:
