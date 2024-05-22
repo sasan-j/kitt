@@ -1,5 +1,6 @@
 import requests
 from loguru import logger
+from langchain.tools import tool
 
 from .common import config, vehicle
 
@@ -19,7 +20,7 @@ def get_weather_current_location():
     return get_weather(location)
 
 
-# current weather API
+@tool
 def get_weather(location: str = "here"):
     """
     Get the current weather in a specified location.
@@ -70,7 +71,8 @@ def get_weather(location: str = "here"):
         # f"Humidity is at {humidity}%. "
         # f"Wind speed is {wind_kph} kph." if 'wind_kph' in weather_data['current'] else ""
     )
-    return weather_sentences, weather_data
+    # return weather_sentences, weather_data
+    return weather_sentences
 
 
 # weather forecast API

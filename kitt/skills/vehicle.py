@@ -1,3 +1,5 @@
+from langchain.tools import tool
+
 from .common import vehicle, Speed
 
 
@@ -35,8 +37,8 @@ def vehicle_status() -> tuple[str, dict[str, str]]:
     return  STATUS_TEMPLATE.format(**vs), vs
 
 
-
-def set_vehicle_speed(speed: Speed):
+@tool
+def set_vehicle_speed(speed: Speed) -> str:
     """Set the speed of the vehicle.
     Args:
         speed (Speed): The speed of the vehicle. ("slow", "fast")
@@ -44,7 +46,8 @@ def set_vehicle_speed(speed: Speed):
     vehicle.speed = speed
     return f"The vehicle speed is set to {speed.value}."
 
-def set_vehicle_destination(destination: str):
+@tool
+def set_vehicle_destination(destination: str) -> str:
     """Set the destination of the vehicle.
     Args:
         destination (str): The destination of the vehicle.

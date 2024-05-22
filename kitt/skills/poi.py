@@ -1,5 +1,8 @@
 import json
+import urllib.parse
 import requests
+from loguru import logger
+from langchain.tools import tool
 from .common import config, vehicle
 
 
@@ -16,7 +19,8 @@ def _select_equally_spaced_coordinates(coords, number_of_points=10):
     return selected_coords
 
 
-def search_points_of_interests(search_query="french restaurant"):
+@tool
+def search_points_of_interest(search_query: str ="french restaurant"):
     """
     Get some of the closest points of interest matching the query.
 
@@ -27,16 +31,31 @@ def search_points_of_interests(search_query="french restaurant"):
     # Extract the latitude and longitude of the vehicle
     vehicle_coordinates = getattr(vehicle, "location_coordinates")
     lat, lon = vehicle_coordinates
-    print(f"POI search vehicle's lat: {lat}, lon: {lon}")
+    logger.info(f"POI search vehicle's lat: {lat}, lon: {lon}")
 
     # https://developer.tomtom.com/search-api/documentation/search-service/search
-    r = requests.get(
-        f"https://api.tomtom.com/search/2/search/{search_query}.json?key={config.TOMTOM_API_KEY}&lat={lat}&lon={lon}&category&radius=1000&limit=100",
-        timeout=5,
-    )
+    # Encode the parameters
+    # Even with encoding tomtom doesn't return the correct results
+    search_query = search_query.replace("'", "")
+    encoded_search_query = urllib.parse.quote(search_query)
+
+    # Construct the URL
+    url = f"https://api.tomtom.com/search/2/search/{encoded_search_query}.json"
+    params = {
+        "key": config.TOMTOM_API_KEY,
+        "lat": lat,
+        "lon": lon,
+        "radius": 5000,
+        "idxSet": "POI",
+        "limit": 50
+    }
+
+    r = requests.get(url, params=params, timeout=5)
 
     # Parse JSON from the response
     data = r.json()
+
+    logger.debug(f"POI search response: {data}\n url:{url} params: {params}")
     # Extract results
     results = data["results"]
 
@@ -57,7 +76,7 @@ def search_points_of_interests(search_query="french restaurant"):
     output = (
         f"There are {len(results)} options in the vicinity. The most relevant are: "
     )
-    return output + ".\n ".join(formatted_results)
+    return output + ".\n ".join(formatted_results), results[:3]
 
 
 def find_points_of_interest(lat="0", lon="0", type_of_poi="restaurant"):
@@ -69,12 +88,14 @@ def find_points_of_interest(lat="0", lon="0", type_of_poi="restaurant"):
     :param type_of_poi (string): Required. type of point of interest depending on what the user wants to do.
     """
     # https://developer.tomtom.com/search-api/documentation/search-service/points-of-interest-search
-    r = requests.get(
-        f"https://api.tomtom.com/search/2/search/{type_of_poi}"
-        ".json?key={0}&lat={1}&lon={2}&radius=10000&vehicleTypeSet=Car&idxSet=POI&limit=100".format(
-            config.TOMTOM_API_KEY, lat, lon
-        )
-    )
+    # Encode the parameters
+    encoded_type_of_poi = urllib.parse.quote(type_of_poi)
+
+    # Construct the URL
+    url = f"https://api.tomtom.com/search/2/search/{encoded_type_of_poi}.json?key={config.TOMTOM_API_KEY}&lat={lat}&lon={lon}&radius=10000&vehicleTypeSet=Car&idxSet=POI&limit=100"
+
+    r = requests.get(url, timeout=5)
+
 
     # Parse JSON from the response
     data = r.json()
@@ -103,7 +124,11 @@ def search_along_route_w_coordinates(points: list[tuple[float, float]], query: s
     """
 
     # The API endpoint for searching along a route
-    url = f"https://api.tomtom.com/search/2/searchAlongRoute/{query}.json?key={config.TOMTOM_API_KEY}&maxDetourTime=360&limit=20&sortBy=detourTime"
+
+    # urlencode the query
+    query = urllib.parse.quote(query)
+
+    url = f"https://api.tomtom.com/search/2/searchAlongRoute/{query}.json?key={config.TOMTOM_API_KEY}&maxDetourTime=600&limit=20&sortBy=detourTime"
 
     points = _select_equally_spaced_coordinates(points, number_of_points=20)
 

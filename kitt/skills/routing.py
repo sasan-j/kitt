@@ -1,5 +1,7 @@
 from datetime import datetime
 import requests
+from loguru import logger
+from langchain.tools import tool
 from .common import config, vehicle
 
 
@@ -120,6 +122,7 @@ def find_route_a_to_b(origin="", destination=""):
     return _format_tomtom_trip_info(trip_info, destination)
 
 
+@tool
 def find_route(destination):
     """Get a route to a destination from the current location of the vehicle.
 

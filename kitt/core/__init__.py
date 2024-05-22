@@ -21,13 +21,13 @@ voices = [
         "Attenborough",
         neutral=f"{file_full_path}/audio/attenborough/neutral.wav",
         angry=None,
-        speed=1.1,
+        speed=1.2,
     ),
     Voice(
         "Rick",
         neutral=f"{file_full_path}/audio/rick/neutral.wav",
         angry=None,
-        speed=1.1,
+        speed=1.2,
     ),
     Voice(
         "Freeman",
@@ -45,7 +45,7 @@ voices = [
         "Darth Wader",
         neutral=f"{file_full_path}/audio/darth/neutral.wav",
         angry=None,
-        speed=1.1,
+        speed=1.15,
     ),
 ]
 
