@@ -8,6 +8,7 @@ import typer
 
 from kitt.skills.common import config, vehicle
 from kitt.skills.routing import calculate_route
+from kitt.core.tts import run_tts_replicate, run_tts_fast
 import ollama
 
 from langchain.tools.base import StructuredTool
@@ -33,6 +34,7 @@ from kitt.skills import (
 )
 from kitt.skills import extract_func_args
 from kitt.core import voice_options, tts_gradio
+
 # from kitt.core.model import process_query
 from kitt.core.model import generate_function_call as process_query
 from kitt.core import utils as kitt_utils
@@ -144,7 +146,7 @@ functions = [
     get_weather,
     find_route,
     search_points_of_interest,
-    search_along_route
+    search_along_route,
 ]
 openai_tools = [convert_to_openai_tool(tool) for tool in functions]
 
@@ -203,8 +205,8 @@ def run_nexusraven_model(query, voice_character, state):
 
 def run_llama3_model(query, voice_character, state):
 
-    assert len (functions) > 0, "No functions to call"
-    assert len (openai_tools) > 0, "No openai tools to call"
+    assert len(functions) > 0, "No functions to call"
+    assert len(openai_tools) > 0, "No openai tools to call"
 
     output_text = process_query(
         query,
@@ -217,7 +219,9 @@ def run_llama3_model(query, voice_character, state):
     gr.Info(f"Output text: {output_text}, generating voice output...")
     voice_out = None
     if state["tts_enabled"]:
-        voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
+        # voice_out = run_tts_replicate(output_text, voice_character)
+        voice_out = run_tts_fast(output_text)[0]
+        # voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
     return (
         output_text,
         voice_out,
@@ -340,9 +344,12 @@ def set_user_preferences(preferences, state):
 
 def set_enable_history(enable_history, state):
     new_enable_history = enable_history == "Yes"
-    logger.info(f"Enable history was {state['enable_history']} and changed to {new_enable_history}")
+    logger.info(
+        f"Enable history was {state['enable_history']} and changed to {new_enable_history}"
+    )
     state["enable_history"] = new_enable_history
     return state
+
 
 # to be able to use the microphone on chrome, you will have to go to chrome://flags/#unsafely-treat-insecure-origin-as-secure and enter http://10.186.115.21:7860/
 # in "Insecure origins treated as secure", enable it and relaunch chrome
@@ -354,9 +361,12 @@ def set_enable_history(enable_history, state):
 
 ORIGIN = "Mondorf-les-Bains, Luxembourg"
 DESTINATION = "Rue Alphonse Weicker, Luxembourg"
+DEFAULT_LLM_BACKEND = "ollama"
+ENABLE_HISTORY = True
+ENABLE_TTS = True
 
 
-def create_demo(tts_server: bool = False, model="llama3", tts_enabled: bool = True):
+def create_demo(tts_server: bool = False, model="llama3"):
     print(f"Running the demo with model: {model} and TTSServer: {tts_server}")
     with gr.Blocks(theme=gr.themes.Default()) as demo:
         state = gr.State(
@@ -365,10 +375,10 @@ def create_demo(tts_server: bool = False, model="llama3", tts_enabled: bool = Tr
                 "query": "",
                 "route_points": [],
                 "model": model,
-                "tts_enabled": tts_enabled,
-                "llm_backend": "ollama",
+                "tts_enabled": ENABLE_TTS,
+                "llm_backend": DEFAULT_LLM_BACKEND,
                 "user_preferences": USER_PREFERENCES,
-                "enable_history": False,
+                "enable_history": ENABLE_HISTORY,
             }
         )
         trip_points = gr.State(value=[])
@@ -388,6 +398,11 @@ def create_demo(tts_server: bool = False, model="llama3", tts_enabled: bool = Tr
                     value=voice_options[0],
                     show_label=True,
                 )
+                # voice_character = gr.Textbox(
+                #     label="Choose a voice",
+                #     value="freeman",
+                #     show_label=True,
+                # )
                 origin = gr.Textbox(
                     value=ORIGIN,
                     label="Origin",
@@ -441,21 +456,21 @@ def create_demo(tts_server: bool = False, model="llama3", tts_enabled: bool = Tr
                 )
                 with gr.Accordion("Config"):
                     tts_enabled = gr.Radio(
-                        choices=["Yes", "No"],
+                        ["Yes", "No"],
                         label="Enable TTS",
-                        value="No",
+                        value="Yes" if ENABLE_TTS else "No",
                         interactive=True,
                     )
                     llm_backend = gr.Radio(
                         choices=["Ollama", "Replicate"],
                         label="LLM Backend",
-                        value="Ollama",
+                        value=DEFAULT_LLM_BACKEND.title(),
                         interactive=True,
                     )
                     enable_history = gr.Radio(
                         ["Yes", "No"],
                         label="Maintain the conversation history?",
-                        value="No",
+                        value="Yes" if ENABLE_HISTORY else "No",
                         interactive=True,
                     )
                 # Push button
@@ -529,7 +544,7 @@ def create_demo(tts_server: bool = False, model="llama3", tts_enabled: bool = Tr
         enable_history.change(
             fn=set_enable_history, inputs=[enable_history, state], outputs=[state]
         )
-        
+
     return demo
 
 
@@ -537,7 +552,7 @@ def create_demo(tts_server: bool = False, model="llama3", tts_enabled: bool = Tr
 gr.close_all()
 
 
-demo = create_demo(False, "llama3", tts_enabled=False)
+demo = create_demo(False, "llama3")
 demo.launch(
     debug=True,
     server_name="0.0.0.0",
