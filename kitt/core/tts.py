@@ -4,8 +4,8 @@ from loguru import logger
 from kitt.skills.common import config
 import torch
 
-# from parler_tts import ParlerTTSForConditionalGeneration
-from transformers import AutoTokenizer, set_seed
+from parler_tts import ParlerTTSForConditionalGeneration
+from transformers import AutoTokenizer
 import soundfile as sf
 from melo.api import TTS as MeloTTS
 
