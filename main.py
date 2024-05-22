@@ -8,7 +8,7 @@ import typer
 
 from kitt.skills.common import config, vehicle
 from kitt.skills.routing import calculate_route
-from kitt.core.tts import run_tts_replicate, run_tts_fast
+from kitt.core.tts import run_tts_replicate, run_tts_fast, run_melo_tts
 import ollama
 
 from langchain.tools.base import StructuredTool
@@ -196,7 +196,7 @@ def run_nexusraven_model(query, voice_character, state):
 
     if type(output_text) == tuple:
         output_text = output_text[0]
-    gr.Info(f"Output text: {output_text}, generating voice output...")
+    gr.Info(f"Output text: {output_text}\nGenerating voice output...")
     return (
         output_text,
         tts_gradio(output_text, voice_character, speaker_embedding_cache)[0],
@@ -216,11 +216,12 @@ def run_llama3_model(query, voice_character, state):
         functions=functions,
         backend=state["llm_backend"],
     )
-    gr.Info(f"Output text: {output_text}, generating voice output...")
+    gr.Info(f"Output text: {output_text}\nGenerating voice output...")
     voice_out = None
     if state["tts_enabled"]:
         # voice_out = run_tts_replicate(output_text, voice_character)
-        voice_out = run_tts_fast(output_text)[0]
+        # voice_out = run_tts_fast(output_text)[0]
+        voice_out = run_melo_tts(output_text, voice_character)    
         # voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
     return (
         output_text,

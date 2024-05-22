@@ -3,15 +3,21 @@ from replicate import Client
 from loguru import logger
 from kitt.skills.common import config
 import torch
-from parler_tts import ParlerTTSForConditionalGeneration
+
+# from parler_tts import ParlerTTSForConditionalGeneration
 from transformers import AutoTokenizer, set_seed
 import soundfile as sf
+from melo.api import TTS as MeloTTS
+
 
 replicate = Client(api_token=config.REPLICATE_API_KEY)
 
 Voice = namedtuple("voice", ["name", "neutral", "angry", "speed"])
 
 voices_replicate = [
+    Voice(
+        "Fast", neutral=None, angry=None, speed=1.0,
+    ),
     Voice(
         "Attenborough",
         neutral="https://zebel.ams3.digitaloceanspaces.com/xtts/short/attenborough-neutral.wav",
@@ -44,6 +50,7 @@ voices_replicate = [
     ),
 ]
 
+
 def voice_from_text(voice, voices):
     for v in voices:
         if voice == f"{v.name} - Neutral":
@@ -64,11 +71,7 @@ def speed_from_text(voice, voices):
 def run_tts_replicate(text: str, voice_character: str):
     voice = voice_from_text(voice_character, voices_replicate)
 
-    input = {
-        "text": text,
-        "speaker": voice,
-        "cleanup_voice": True
-    }
+    input = {"text": text, "speaker": voice, "cleanup_voice": True}
 
     output = replicate.run(
         # "afiaka87/tortoise-tts:e9658de4b325863c4fcdc12d94bb7c9b54cbfe351b7ca1b36860008172b91c71",
@@ -82,10 +85,11 @@ def run_tts_replicate(text: str, voice_character: str):
 def get_fast_tts():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-    model = ParlerTTSForConditionalGeneration.from_pretrained("parler-tts/parler-tts-mini-expresso").to(device)
+    model = ParlerTTSForConditionalGeneration.from_pretrained(
+        "parler-tts/parler-tts-mini-expresso"
+    ).to(device)
     tokenizer = AutoTokenizer.from_pretrained("parler-tts/parler-tts-mini-expresso")
     return model, tokenizer, device
-
 
 
 fast_tts = get_fast_tts()
@@ -100,4 +104,20 @@ def run_tts_fast(text: str):
 
     generation = model.generate(input_ids=input_ids, prompt_input_ids=prompt_input_ids)
     audio_arr = generation.cpu().numpy().squeeze()
-    return model.config.sampling_rate, audio_arr, dict(text=text, voice="Thomas")
+    return (model.config.sampling_rate, audio_arr), dict(text=text, voice="Thomas")
+
+
+def load_melo_tts():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model = MeloTTS(language="EN", device=device)
+    return model
+
+
+melo_tts = load_melo_tts()
+
+
+def run_melo_tts(text: str, voice: str):
+    speed = 1.0
+    speaker_ids = melo_tts.hps.data.spk2id
+    audio = melo_tts.tts_to_file(text, speaker_ids["EN-Default"], None, speed=speed)
+    return melo_tts.hps.data.sampling_rate, audio

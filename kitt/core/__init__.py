@@ -6,7 +6,7 @@ from typing import List
 
 import numpy as np
 import torch
-from TTS.api import TTS
+# from TTS.api import TTS
 
 os.environ["COQUI_TOS_AGREED"] = "1"
 
@@ -17,6 +17,9 @@ Voice = namedtuple("voice", ["name", "neutral", "angry", "speed"])
 file_full_path = pathlib.Path(os.path.realpath(__file__)).parent
 
 voices = [
+    Voice(
+        "Fast", neutral=None, angry=None, speed=1.0,
+    ),
     Voice(
         "Attenborough",
         neutral=f"{file_full_path}/audio/attenborough/neutral.wav",
