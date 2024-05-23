@@ -1,8 +1,10 @@
 import json
 import urllib.parse
+
 import requests
-from loguru import logger
 from langchain.tools import tool
+from loguru import logger
+
 from .common import config, vehicle
 
 
@@ -20,7 +22,7 @@ def _select_equally_spaced_coordinates(coords, number_of_points=10):
 
 
 @tool
-def search_points_of_interest(search_query: str ="french restaurant"):
+def search_points_of_interest(search_query: str = "french restaurant"):
     """
     Get some of the closest points of interest matching the query.
 
@@ -47,7 +49,7 @@ def search_points_of_interest(search_query: str ="french restaurant"):
         "lon": lon,
         "radius": 5000,
         "idxSet": "POI",
-        "limit": 50
+        "limit": 50,
     }
 
     r = requests.get(url, params=params, timeout=5)
@@ -76,7 +78,7 @@ def search_points_of_interest(search_query: str ="french restaurant"):
     output = (
         f"There are {len(results)} options in the vicinity. The most relevant are: "
     )
-    return output + ".\n ".join(formatted_results), results[:3]
+    return output + ".\n ".join(formatted_results), [x["poi"] for x in results[:3]]
 
 
 def find_points_of_interest(lat="0", lon="0", type_of_poi="restaurant"):
@@ -95,7 +97,6 @@ def find_points_of_interest(lat="0", lon="0", type_of_poi="restaurant"):
     url = f"https://api.tomtom.com/search/2/search/{encoded_type_of_poi}.json?key={config.TOMTOM_API_KEY}&lat={lat}&lon={lon}&radius=10000&vehicleTypeSet=Car&idxSet=POI&limit=100"
 
     r = requests.get(url, timeout=5)
-
 
     # Parse JSON from the response
     data = r.json()

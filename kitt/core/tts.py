@@ -1,14 +1,14 @@
 from collections import namedtuple
-from replicate import Client
-from loguru import logger
-from kitt.skills.common import config
-import torch
 
-from parler_tts import ParlerTTSForConditionalGeneration
-from transformers import AutoTokenizer
 import soundfile as sf
+import torch
+from loguru import logger
 from melo.api import TTS as MeloTTS
+from parler_tts import ParlerTTSForConditionalGeneration
+from replicate import Client
+from transformers import AutoTokenizer
 
+from kitt.skills.common import config
 
 replicate = Client(api_token=config.REPLICATE_API_KEY)
 
@@ -16,7 +16,10 @@ Voice = namedtuple("voice", ["name", "neutral", "angry", "speed"])
 
 voices_replicate = [
     Voice(
-        "Fast", neutral=None, angry=None, speed=1.0,
+        "Fast",
+        neutral="empty",
+        angry=None,
+        speed=1.0,
     ),
     Voice(
         "Attenborough",

@@ -1,7 +1,9 @@
 from datetime import datetime
+
 import requests
-from loguru import logger
 from langchain.tools import tool
+from loguru import logger
+
 from .common import config, vehicle
 
 
@@ -12,11 +14,27 @@ def find_coordinates(address):
     """
     # https://developer.tomtom.com/geocoding-api/documentation/geocode
     url = f"https://api.tomtom.com/search/2/geocode/{address}.json?key={config.TOMTOM_API_KEY}"
-    response = requests.get(url)
+    response = requests.get(url, timeout=5)
     data = response.json()
     lat = data["results"][0]["position"]["lat"]
     lon = data["results"][0]["position"]["lon"]
     return lat, lon
+
+
+def find_address(lat, lon):
+    """
+    Find the address of a specific location.
+
+    Args:
+    lat (string): Required. The latitude
+    lon (string): Required. The longitude
+    """
+    # https://developer.tomtom.com/search-api/documentation/reverse-geocoding
+    url = f"https://api.tomtom.com/search/2/reverseGeocode/{lat},{lon}.json?key={config.TOMTOM_API_KEY}"
+    response = requests.get(url, timeout=5)
+    data = response.json()
+    address = data["addresses"][0]["address"]["freeformAddress"]
+    return address
 
 
 def calculate_route(origin, destination):
@@ -37,7 +55,7 @@ def calculate_route(origin, destination):
     # destination = "49.586745,6.140002"
 
     url = f"https://api.tomtom.com/routing/1/calculateRoute/{orig_coords_str}:{dest_coords_str}/json?key={config.TOMTOM_API_KEY}"
-    response = requests.get(url)
+    response = requests.get(url, timeout=5)
     data = response.json()
     points = data["routes"][0]["legs"][0]["points"]
 
@@ -150,7 +168,6 @@ def find_route(destination):
     )
     return _format_tomtom_trip_info(trip_info, destination)
 
-    
     # raw_response["routes"][0]["legs"][0]["points"]
 
 

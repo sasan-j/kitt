@@ -1,12 +1,12 @@
 import os
-from collections import namedtuple
-import time
 import pathlib
+import time
+from collections import namedtuple
 from typing import List
 
 import numpy as np
 import torch
-# from TTS.api import TTS
+from TTS.api import TTS
 
 os.environ["COQUI_TOS_AGREED"] = "1"
 
@@ -18,7 +18,10 @@ file_full_path = pathlib.Path(os.path.realpath(__file__)).parent
 
 voices = [
     Voice(
-        "Fast", neutral=None, angry=None, speed=1.0,
+        "Fast",
+        neutral="empty",
+        angry=None,
+        speed=1.0,
     ),
     Voice(
         "Attenborough",

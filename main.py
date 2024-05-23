@@ -1,49 +1,65 @@
 import time
+
 import gradio as gr
 import numpy as np
+import ollama
 import torch
 import torchaudio
-from transformers import pipeline
 import typer
-
-from kitt.skills.common import config, vehicle
-from kitt.skills.routing import calculate_route
-from kitt.core.tts import run_tts_replicate, run_tts_fast, run_melo_tts
-import ollama
-
-from langchain.tools.base import StructuredTool
 from langchain.memory import ChatMessageHistory
-from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain.tools import tool
+from langchain.tools.base import StructuredTool
+from langchain_core.utils.function_calling import convert_to_openai_tool
 from loguru import logger
+from transformers import pipeline
 
-
-from kitt.skills import (
-    get_weather,
-    find_route,
-    get_forecast,
-    vehicle_status as vehicle_status_fn,
-    set_vehicle_speed,
-    search_points_of_interest,
-    search_along_route_w_coordinates,
-    set_vehicle_destination,
-    do_anything_else,
-    date_time_info,
-    get_weather_current_location,
-    code_interpreter,
-)
-from kitt.skills import extract_func_args
-from kitt.core import voice_options, tts_gradio
+from kitt.core import tts_gradio
+from kitt.core import utils as kitt_utils
+from kitt.core import voice_options
 
 # from kitt.core.model import process_query
 from kitt.core.model import generate_function_call as process_query
-from kitt.core import utils as kitt_utils
+from kitt.core.tts import run_melo_tts, run_tts_fast, run_tts_replicate
+from kitt.skills import (
+    code_interpreter,
+    date_time_info,
+    do_anything_else,
+    extract_func_args,
+    find_route,
+    get_forecast,
+    get_weather,
+    get_weather_current_location,
+    search_along_route_w_coordinates,
+    search_points_of_interest,
+    set_vehicle_destination,
+    set_vehicle_speed,
+)
+from kitt.skills import vehicle_status as vehicle_status_fn
+from kitt.skills.common import config, vehicle
+from kitt.skills.routing import calculate_route, find_address
 
+ORIGIN = "Mondorf-les-Bains, Luxembourg"
+DESTINATION = "Rue Alphonse Weicker, Luxembourg"
+DEFAULT_LLM_BACKEND = "ollama"
+ENABLE_HISTORY = True
+ENABLE_TTS = True
+TTS_BACKEND = "local"
+USER_PREFERENCES = "User loves italian food."
 
 global_context = {
     "vehicle": vehicle,
     "query": "How is the weather?",
     "route_points": [],
+    "origin": ORIGIN,
+    "destination": DESTINATION,
+    "enable_history": ENABLE_HISTORY,
+    "tts_enabled": ENABLE_TTS,
+    "tts_backend": TTS_BACKEND,
+    "llm_backend": DEFAULT_LLM_BACKEND,
+    "map_origin": ORIGIN,
+    "map_destination": DESTINATION,
+    "update_proxy": 0,
+    "map": None,
 }
 
 speaker_embedding_cache = {}
@@ -71,8 +87,6 @@ Answer questions concisely and do not mention what you base your reply on.<|im_e
 {{ .Prompt }}<|im_end|>
 <|im_start|>assistant
 """
-
-USER_PREFERENCES = "I love italian food\nI like doing sports"
 
 
 def get_prompt(template, input, history, tools):
@@ -221,7 +235,7 @@ def run_llama3_model(query, voice_character, state):
     if state["tts_enabled"]:
         # voice_out = run_tts_replicate(output_text, voice_character)
         # voice_out = run_tts_fast(output_text)[0]
-        voice_out = run_melo_tts(output_text, voice_character)    
+        voice_out = run_melo_tts(output_text, voice_character)
         # voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
     return (
         output_text,
@@ -245,33 +259,47 @@ def run_model(query, voice_character, state):
 
     if not state["enable_history"]:
         history.clear()
-    return text, voice, vehicle.model_dump_json()
+    global_context["update_proxy"] += 1
+
+    return (
+        text,
+        voice,
+        vehicle.model_dump_json(),
+        state,
+        dict(update_proxy=global_context["update_proxy"]),
+    )
 
 
 def calculate_route_gradio(origin, destination):
     vehicle_status, points = calculate_route(origin, destination)
     plot = kitt_utils.plot_route(points, vehicle=vehicle.location_coordinates)
     global_context["route_points"] = points
+    # state.value["route_points"] = points
     vehicle.location_coordinates = points[0]["latitude"], points[0]["longitude"]
     return plot, vehicle_status, 0
 
 
-def update_vehicle_status(trip_progress, origin, destination):
+def update_vehicle_status(trip_progress, origin, destination, state):
     if not global_context["route_points"]:
         vehicle_status, points = calculate_route(origin, destination)
         global_context["route_points"] = points
+    global_context["destination"] = destination
+    global_context["route_points"] = global_context["route_points"]
     n_points = len(global_context["route_points"])
     index = min(int(trip_progress / 100 * n_points), n_points - 1)
-    print(f"Trip progress: {trip_progress} len: {n_points}, index: {index}")
+    logger.info(f"Trip progress: {trip_progress} len: {n_points}, index: {index}")
     new_coords = global_context["route_points"][index]
     new_coords = new_coords["latitude"], new_coords["longitude"]
-    print(f"Trip progress: {trip_progress}, len: {n_points}, new_coords: {new_coords}")
+    logger.info(
+        f"Trip progress: {trip_progress}, len: {n_points}, new_coords: {new_coords}"
+    )
     vehicle.location_coordinates = new_coords
-    vehicle.location = ""
+    new_vehicle_location = find_address(new_coords[0], new_coords[1])
+    vehicle.location = new_vehicle_location
     plot = kitt_utils.plot_route(
         global_context["route_points"], vehicle=vehicle.location_coordinates
     )
-    return vehicle.model_dump_json(), plot
+    return vehicle.model_dump_json(), plot, state
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -314,8 +342,10 @@ def save_and_transcribe_audio(audio):
 
 def save_and_transcribe_run_model(audio, voice_character, state):
     text = save_and_transcribe_audio(audio)
-    out_text, out_voice, vehicle_status = run_model(text, voice_character, state)
-    return text, out_text, out_voice, vehicle_status
+    out_text, out_voice, vehicle_status, state, update_proxy = run_model(
+        text, voice_character, state
+    )
+    return None, text, out_text, out_voice, vehicle_status, state, update_proxy
 
 
 def set_tts_enabled(tts_enabled, state):
@@ -324,6 +354,7 @@ def set_tts_enabled(tts_enabled, state):
         f"TTS enabled was {state['tts_enabled']} and changed to {new_tts_enabled}"
     )
     state["tts_enabled"] = new_tts_enabled
+    global_context["tts_enabled"] = new_tts_enabled
     return state
 
 
@@ -333,6 +364,7 @@ def set_llm_backend(llm_backend, state):
         f"LLM backend was {state['llm_backend']} and changed to {new_llm_backend}"
     )
     state["llm_backend"] = new_llm_backend
+    global_context["llm_backend"] = new_llm_backend
     return state
 
 
@@ -340,6 +372,7 @@ def set_user_preferences(preferences, state):
     new_preferences = preferences
     logger.info(f"User preferences changed to: {new_preferences}")
     state["user_preferences"] = new_preferences
+    global_context["user_preferences"] = new_preferences
     return state
 
 
@@ -349,7 +382,38 @@ def set_enable_history(enable_history, state):
         f"Enable history was {state['enable_history']} and changed to {new_enable_history}"
     )
     state["enable_history"] = new_enable_history
+    global_context["enable_history"] = new_enable_history
     return state
+
+
+def set_tts_backend(tts_backend, state):
+    new_tts_backend = tts_backend.lower()
+    logger.info(
+        f"TTS backend was {state['tts_backend']} and changed to {new_tts_backend}"
+    )
+    state["tts_backend"] = new_tts_backend
+    global_context["tts_backend"] = new_tts_backend
+    return state
+
+
+def conditional_update():
+    if global_context["destination"] != vehicle.destination:
+        global_context["destination"] = vehicle.destination
+
+    if global_context["origin"] != vehicle.location:
+        global_context["origin"] = vehicle.location
+
+    if (
+        global_context["map_origin"] != vehicle.location
+        or global_context["map_destination"] != vehicle.destination
+        or global_context["update_proxy"] == 0
+    ):
+        logger.info(f"Updating the map plot... in conditional_update")
+        map_plot, vehicle_status, _ = calculate_route_gradio(
+            vehicle.location, vehicle.destination
+        )
+        global_context["map"] = map_plot
+    return global_context["map"]
 
 
 # to be able to use the microphone on chrome, you will have to go to chrome://flags/#unsafely-treat-insecure-origin-as-secure and enter http://10.186.115.21:7860/
@@ -358,13 +422,6 @@ def set_enable_history(enable_history, state):
 # example question:
 # what's the weather like outside?
 # What's the closest restaurant from here?
-
-
-ORIGIN = "Mondorf-les-Bains, Luxembourg"
-DESTINATION = "Rue Alphonse Weicker, Luxembourg"
-DEFAULT_LLM_BACKEND = "ollama"
-ENABLE_HISTORY = True
-ENABLE_TTS = True
 
 
 def create_demo(tts_server: bool = False, model="llama3"):
@@ -380,10 +437,13 @@ def create_demo(tts_server: bool = False, model="llama3"):
                 "llm_backend": DEFAULT_LLM_BACKEND,
                 "user_preferences": USER_PREFERENCES,
                 "enable_history": ENABLE_HISTORY,
+                "tts_backend": TTS_BACKEND,
+                "destination": DESTINATION,
             }
         )
-        trip_points = gr.State(value=[])
+
         plot, vehicle_status, _ = calculate_route_gradio(ORIGIN, DESTINATION)
+        global_context["map"] = plot
 
         with gr.Row():
             with gr.Column(scale=1, min_width=300):
@@ -452,6 +512,10 @@ def create_demo(tts_server: bool = False, model="llama3"):
                         label="Input text",
                         interactive=True,
                     )
+                    update_proxy = gr.JSON(
+                        value=dict(update_proxy=0),
+                        label="Global context",
+                    )
                 vehicle_status = gr.JSON(
                     value=vehicle.model_dump_json(), label="Vehicle status"
                 )
@@ -460,6 +524,12 @@ def create_demo(tts_server: bool = False, model="llama3"):
                         ["Yes", "No"],
                         label="Enable TTS",
                         value="Yes" if ENABLE_TTS else "No",
+                        interactive=True,
+                    )
+                    tts_backend = gr.Radio(
+                        ["Local", "Replicate"],
+                        label="TTS Backend",
+                        value=TTS_BACKEND.title(),
                         interactive=True,
                     )
                     llm_backend = gr.Radio(
@@ -505,26 +575,34 @@ def create_demo(tts_server: bool = False, model="llama3"):
         input_text.submit(
             fn=run_model,
             inputs=[input_text, voice_character, state],
-            outputs=[output_text, output_audio, vehicle_status],
+            outputs=[output_text, output_audio, vehicle_status, state, update_proxy],
         )
         input_text_debug.submit(
             fn=run_model,
             inputs=[input_text_debug, voice_character, state],
-            outputs=[output_text, output_audio, vehicle_status],
+            outputs=[output_text, output_audio, vehicle_status, state, update_proxy],
         )
 
         # Set the vehicle status based on the trip progress
         trip_progress.release(
             fn=update_vehicle_status,
-            inputs=[trip_progress, origin, destination],
-            outputs=[vehicle_status, map_plot],
+            inputs=[trip_progress, origin, destination, state],
+            outputs=[vehicle_status, map_plot, state],
         )
 
         # Save and transcribe the audio
         input_audio.stop_recording(
             fn=save_and_transcribe_run_model,
             inputs=[input_audio, voice_character, state],
-            outputs=[input_text, output_text, output_audio, vehicle_status],
+            outputs=[
+                input_audio,
+                input_text,
+                output_text,
+                output_audio,
+                vehicle_status,
+                state,
+                update_proxy,
+            ],
         )
         input_audio_debug.stop_recording(
             fn=save_and_transcribe_audio,
@@ -539,12 +617,16 @@ def create_demo(tts_server: bool = False, model="llama3"):
         tts_enabled.change(
             fn=set_tts_enabled, inputs=[tts_enabled, state], outputs=[state]
         )
+        tts_backend.change(
+            fn=set_tts_backend, inputs=[tts_backend, state], outputs=[state]
+        )
         llm_backend.change(
             fn=set_llm_backend, inputs=[llm_backend, state], outputs=[state]
         )
         enable_history.change(
             fn=set_enable_history, inputs=[enable_history, state], outputs=[state]
         )
+        update_proxy.change(fn=conditional_update, inputs=[], outputs=[map_plot])
 
     return demo
 

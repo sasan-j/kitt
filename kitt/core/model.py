@@ -2,20 +2,21 @@ import ast
 import json
 import re
 import uuid
+import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import List
-import xml.etree.ElementTree as ET
 
 from langchain.memory import ChatMessageHistory
-from langchain_core.messages import HumanMessage, AIMessage, ToolMessage
-from langchain_core.utils.function_calling import convert_to_openai_tool
 from langchain.tools.base import StructuredTool
+from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
+from langchain_core.utils.function_calling import convert_to_openai_tool
+from loguru import logger
 from ollama import Client
 from pydantic import BaseModel
-from loguru import logger
 
 from kitt.skills import vehicle_status
 from kitt.skills.common import config
+
 from .validator import validate_function_call_schema
 
 
@@ -83,8 +84,9 @@ Once you have called a function, results will be fed back to you within <tool_re
 Don't make assumptions about tool results if <tool_response> XML tags are not present since function hasn't been executed yet.
 Analyze the data once you get the results and call another function.
 At each iteration please continue adding the your analysis to previous summary.
-Your final response should directly answer the user query. Don't tell what you are doing, just do it.
-Keep your responses very concise and to the point. Don't provide any unnecessary information. Don't refer to user preferences as <user_preferences>.
+Your final response should directly answer the user query. Don't tell what you are doing, just do it. Do your best to keep your responses to about 1 line. Avoid asking follow up questions as much as possible.
+Keep your responses very concise and to the point. Don't provide any unnecessary information. Do not offer to help with anything other than the user query.
+Don't refer to user preferences as <user_preferences>.
 
 
 Tools:
@@ -129,6 +131,16 @@ User: Set the destination to Paris.
 Assistant:
 <tool_call>
 {{"arguments": {{"destination": "Paris"}}, "name": "set_vehicle_destination"}}
+</tool_call>
+
+Example 5:
+User: Which place is warmer and by how much, dubai or tokyo?
+Assistant:
+<tool_call>
+{{"arguments": {{"location": "Tokyo"}}, "name": "get_weather"}}
+</tool_call>
+<tool_call>
+{{"arguments": {{"location": "Dubai"}}, "name": "get_weather"}}
 </tool_call>
 
 
@@ -226,9 +238,6 @@ def get_prompt(template, history, tools, schema, user_preferences, car_status=No
     # if input:
     #     prompt += USER_QUERY_TEMPLATE.format(user_input=input)
     return prompt
-
-
-
 
 
 def run_inference_ollama(prompt):

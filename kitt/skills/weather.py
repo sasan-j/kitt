@@ -1,6 +1,6 @@
 import requests
-from loguru import logger
 from langchain.tools import tool
+from loguru import logger
 
 from .common import config, vehicle
 
