@@ -103,6 +103,7 @@ When using tools, ensure to only use the tools provided and not make up any data
 
 When asked for the weather or points of interest, use the appropriate tool with the current location from <car_status>. If user provides a location, use that location.
 Always assume user wants to travel by car.
+Related to points of interests, do not provide any more information to the user other than their name and their distance from the current location. Do provide more information only if the user asks for it.
 
 Schema:
 Use the following pydantic model json schema for each tool call you will make:

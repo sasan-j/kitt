@@ -78,7 +78,8 @@ def search_points_of_interest(search_query: str = "french restaurant"):
     output = (
         f"There are {len(results)} options in the vicinity. The most relevant are: "
     )
-    return output + ".\n ".join(formatted_results), [x["poi"] for x in results[:3]]
+    extra_info = [x["poi"] for x in results[:3]]
+    return output + ".\n ".join(formatted_results)
 
 
 def find_points_of_interest(lat="0", lon="0", type_of_poi="restaurant"):
