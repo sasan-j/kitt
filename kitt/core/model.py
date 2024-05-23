@@ -19,6 +19,12 @@ from kitt.skills.common import config
 
 from .validator import validate_function_call_schema
 
+# Model Settings
+TEMPERATURE = 0.5
+REPEAT_PENALTY = 1.1
+TOP_P = 0.9
+TOP_K = 50
+
 
 class FunctionCall(BaseModel):
     arguments: dict
@@ -240,45 +246,6 @@ def get_prompt(template, history, tools, schema, user_preferences, car_status=No
     return prompt
 
 
-def run_inference_ollama(prompt):
-    data = {
-        "prompt": prompt,
-        # "streaming": False,
-        # "model": "smangrul/llama-3-8b-instruct-function-calling",
-        # "model": "elvee/hermes-2-pro-llama-3:8b-Q5_K_M",
-        # "model": "NousResearch/Hermes-2-Pro-Llama-3-8B",
-        "model": "interstellarninja/hermes-2-pro-llama-3-8b",
-        # "model": "dolphin-llama3:8b",
-        # "model": "dolphin-llama3:70b",
-        "raw": True,
-        "options": {
-            "temperature": 0.7,
-            # "max_tokens": 1500,
-            "num_predict": 1500,
-            # "mirostat": 1,
-            # "mirostat_tau": 2,
-            "repeat_penalty": 1.2,
-            "top_k": 25,
-            "top_p": 0.5,
-            "num_ctx": 8000,
-            # "stop": ["<|im_end|>"]
-            # "num_predict": 1500,
-            # "max_tokens": 1500,
-        },
-    }
-
-    client = Client(host="http://localhost:11434")
-    # out = ollama.generate(**data)
-    out = client.generate(**data)
-    res = out.pop("response")
-    # Report prompt and eval tokens
-    logger.warning(
-        f"Prompt tokens: {out.get('prompt_eval_count')}, Response tokens: {out.get('eval_count')}"
-    )
-    logger.debug(f"Response from Ollama: {res}\nOut:{out}")
-    return res
-
-
 def run_inference_step(
     depth, history, tools, schema_json, user_preferences, backend="ollama"
 ):
@@ -317,10 +284,12 @@ def run_inference_replicate(prompt):
 
     input = {
         "prompt": prompt,
-        "temperature": 0.5,
+        "temperature": TEMPERATURE,
         "system_prompt": "",
         "max_new_tokens": 1024,
-        "repeat_penalty": 1.1,
+        "repeat_penalty": REPEAT_PENALTY,
+        "top_p": TOP_P,
+        "top_k": TOP_K,
         "prompt_template": "{prompt}",
     }
 
@@ -334,6 +303,45 @@ def run_inference_replicate(prompt):
     logger.debug(f"Response from Replicate:\nOut:{out}")
 
     return out
+
+
+def run_inference_ollama(prompt):
+    data = {
+        "prompt": prompt,
+        # "streaming": False,
+        # "model": "smangrul/llama-3-8b-instruct-function-calling",
+        # "model": "elvee/hermes-2-pro-llama-3:8b-Q5_K_M",
+        # "model": "NousResearch/Hermes-2-Pro-Llama-3-8B",
+        "model": "interstellarninja/hermes-2-pro-llama-3-8b",
+        # "model": "dolphin-llama3:8b",
+        # "model": "dolphin-llama3:70b",
+        "raw": True,
+        "options": {
+            "temperature": TEMPERATURE,
+            # "max_tokens": 1500,
+            "num_predict": 1500,
+            # "mirostat": 1,
+            # "mirostat_tau": 2,
+            "repeat_penalty": REPEAT_PENALTY,
+            "top_p": TOP_P,
+            "top_k": TOP_K,
+            "num_ctx": 8000,
+            # "stop": ["<|im_end|>"]
+            # "num_predict": 1500,
+            # "max_tokens": 1500,
+        },
+    }
+
+    client = Client(host="http://localhost:11434")
+    # out = ollama.generate(**data)
+    out = client.generate(**data)
+    res = out.pop("response")
+    # Report prompt and eval tokens
+    logger.warning(
+        f"Prompt tokens: {out.get('prompt_eval_count')}, Response tokens: {out.get('eval_count')}"
+    )
+    logger.debug(f"Response from Ollama: {res}\nOut:{out}")
+    return res
 
 
 def run_inference(prompt, backend="ollama"):
