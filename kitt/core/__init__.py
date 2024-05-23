@@ -101,7 +101,7 @@ def speed_from_text(voice):
             return v.speed
 
 
-def tts(
+def tts_xtts(
     self,
     text: str = "",
     language_name: str = "",
@@ -198,7 +198,7 @@ def tts_gradio(text, voice, cache):
     (gpt_cond_latent, speaker_embedding) = compute_speaker_embedding(
         voice_path, tts_pipeline.synthesizer.tts_config, tts_pipeline, cache
     )
-    out = tts(
+    out = tts_xtts(
         tts_pipeline.synthesizer,
         text,
         language_name="en",

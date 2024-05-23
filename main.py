@@ -40,7 +40,7 @@ from kitt.skills.routing import calculate_route, find_address
 
 ORIGIN = "Mondorf-les-Bains, Luxembourg"
 DESTINATION = "Rue Alphonse Weicker, Luxembourg"
-DEFAULT_LLM_BACKEND = "ollama"
+DEFAULT_LLM_BACKEND = "replicate"
 ENABLE_HISTORY = True
 ENABLE_TTS = True
 TTS_BACKEND = "local"
@@ -133,11 +133,11 @@ def search_along_route(query=""):
 
 def set_time(time_picker):
     vehicle.time = time_picker
-    return vehicle.model_dump_json()
+    return vehicle.model_dump_json(indent=2)
 
 
 def get_vehicle_status(state):
-    return state.value["vehicle"].model_dump_json()
+    return state.value["vehicle"].model_dump_json(indent=2)
 
 
 tools = [
@@ -232,11 +232,16 @@ def run_llama3_model(query, voice_character, state):
     )
     gr.Info(f"Output text: {output_text}\nGenerating voice output...")
     voice_out = None
-    if state["tts_enabled"]:
-        # voice_out = run_tts_replicate(output_text, voice_character)
+    if global_context["tts_enabled"]:
+        if "Fast" in voice_character:
+            voice_out = run_melo_tts(output_text, voice_character)
+        elif global_context["tts_backend"] == "replicate":
+            voice_out = run_tts_replicate(output_text, voice_character)
+        else:
+            voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
+        # 
         # voice_out = run_tts_fast(output_text)[0]
-        voice_out = run_melo_tts(output_text, voice_character)
-        # voice_out = tts_gradio(output_text, voice_character, speaker_embedding_cache)[0]
+        # 
     return (
         output_text,
         voice_out,
@@ -264,7 +269,7 @@ def run_model(query, voice_character, state):
     return (
         text,
         voice,
-        vehicle.model_dump_json(),
+        vehicle,
         state,
         dict(update_proxy=global_context["update_proxy"]),
     )
@@ -299,7 +304,8 @@ def update_vehicle_status(trip_progress, origin, destination, state):
     plot = kitt_utils.plot_route(
         global_context["route_points"], vehicle=vehicle.location_coordinates
     )
-    return vehicle.model_dump_json(), plot, state
+    return vehicle, plot, state
+    return vehicle.model_dump_json(indent=2), plot, state
 
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -335,8 +341,8 @@ def save_and_transcribe_audio(audio):
         gr.Info(f"Transcribed text is: {text}\nProcessing the input...")
 
     except Exception as e:
-        print(f"Error: {e}")
-        return "Error transcribing audio."
+        logger.error(f"Error: {e}")
+        raise Exception("Error transcribing audio.")
     return text
 
 
@@ -447,6 +453,9 @@ def create_demo(tts_server: bool = False, model="llama3"):
 
         with gr.Row():
             with gr.Column(scale=1, min_width=300):
+                vehicle_status = gr.JSON(
+                    value=vehicle.model_dump_json(indent=2), label="Vehicle status"
+                )
                 time_picker = gr.Dropdown(
                     choices=hour_options,
                     label="What time is it? (HH:MM)",
@@ -516,9 +525,6 @@ def create_demo(tts_server: bool = False, model="llama3"):
                         value=dict(update_proxy=0),
                         label="Global context",
                     )
-                vehicle_status = gr.JSON(
-                    value=vehicle.model_dump_json(), label="Vehicle status"
-                )
                 with gr.Accordion("Config"):
                     tts_enabled = gr.Radio(
                         ["Yes", "No"],
