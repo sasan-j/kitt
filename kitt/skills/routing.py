@@ -59,7 +59,7 @@ def calculate_route(origin, destination):
     data = response.json()
     points = data["routes"][0]["legs"][0]["points"]
 
-    return vehicle.model_dump_json(), points
+    return vehicle, points
 
 
 def find_route_tomtom(

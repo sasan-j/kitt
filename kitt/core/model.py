@@ -331,7 +331,7 @@ def run_inference_replicate(prompt):
     )
     out = "".join(output)
 
-    logger.debug(f"Response from Ollama:\nOut:{out}")
+    logger.debug(f"Response from Replicate:\nOut:{out}")
 
     return out
 
