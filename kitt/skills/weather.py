@@ -67,8 +67,8 @@ def get_weather(location: str = "here"):
     # Formulate the sentences - {region}, {country}
     weather_sentences = (
         f"The current weather in {location} is {condition_text} "
-        f"with a temperature of {temperature_c} degrees C"
-        f" that feels like {feelslike_c} degrees C."
+        f"with a temperature of {temperature_c} °C"
+        f" that feels like {feelslike_c} °C."
         if feelslike_c != temperature_c
         else ""
         # f"Humidity is at {humidity}%. "
@@ -132,7 +132,7 @@ def get_forecast(city_name: str = "", when=0, **kwargs):
                 number_str = f"in {when-1} days"
 
             # Generate a sentence for the day's forecast
-            forecast_sentence = f"On {date} ({number_str}) in {city_name}, the weather will be {conditions} with a high of {max_temp_c} C and a low of {min_temp_c} C. There's a {chance_of_rain}% chance of rain. "
+            forecast_sentence = f"On {date} ({number_str}) in {city_name}, the weather will be {conditions} with a high of {max_temp_c} °C and a low of {min_temp_c} °C. There's a {chance_of_rain}% chance of rain. "
 
             # number = number + 1
             # Add the sentence to the result

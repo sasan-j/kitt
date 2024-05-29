@@ -1,3 +1,4 @@
+import copy
 from collections import namedtuple
 
 import soundfile as sf
@@ -52,6 +53,15 @@ voices_replicate = [
         speed=1.15,
     ),
 ]
+
+
+def prep_for_tts(text: str):
+    text_tts = copy.deepcopy(text)
+    text_tts = text_tts.replace("km/h", "kilometers per hour")
+    text_tts = text_tts.replace("°C", "degrees Celsius")
+    text_tts = text_tts.replace("°F", "degrees Fahrenheit")
+    text_tts = text_tts.replace("km", "kilometers")
+    return text_tts
 
 
 def voice_from_text(voice, voices):

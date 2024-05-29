@@ -267,7 +267,7 @@ def run_inference_step(
     #     prompt += "\nThis is the first turn and you don't have <tool_results> to analyze yet."
     prompt += AI_PREAMBLE
 
-    logger.info(f"Prompt is:\n{prompt}")
+    # logger.info(f"Prompt is:\n{prompt}")
 
     if backend == "ollama":
         output = run_inference_ollama(prompt)
@@ -348,7 +348,7 @@ def run_inference_ollama(prompt):
 def run_inference(prompt, backend="ollama"):
     prompt += AI_PREAMBLE
 
-    logger.info(f"Prompt is:\n{prompt}")
+    # logger.info(f"Prompt is:\n{prompt}")
 
     if backend == "ollama":
         output = run_inference_ollama(prompt)

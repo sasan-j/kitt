@@ -38,7 +38,7 @@ voices = [
     Voice(
         "Freeman",
         neutral=f"{file_full_path}/audio/freeman/neutral.wav",
-        angry="audio/freeman/angry.wav",
+        angry=f"{file_full_path}/audio/freeman/angry.wav",
         speed=1.1,
     ),
     Voice(

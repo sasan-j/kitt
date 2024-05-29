@@ -15,7 +15,7 @@ def plot_route(points, vehicle: Union[tuple[float, float], None] = None):
     # fig = px.line_geo(lat=lats, lon=lons)
     # fig.update_geos(fitbounds="locations")
 
-    fig = px.line_mapbox(lat=lats, lon=lons, color_discrete_sequence=["red"])
+    fig = px.line_mapbox(lat=lats, lon=lons, color_discrete_sequence=["red"], zoom=6)
 
     if vehicle:
         fig.add_trace(

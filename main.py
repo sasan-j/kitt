@@ -19,7 +19,7 @@ from kitt.core import voice_options
 
 # from kitt.core.model import process_query
 from kitt.core.model import generate_function_call as process_query
-from kitt.core.tts import run_melo_tts, run_tts_fast, run_tts_replicate
+from kitt.core.tts import prep_for_tts, run_melo_tts, run_tts_fast, run_tts_replicate
 from kitt.skills import (
     code_interpreter,
     date_time_info,
@@ -38,7 +38,7 @@ from kitt.skills import vehicle_status as vehicle_status_fn
 from kitt.skills.common import config, vehicle
 from kitt.skills.routing import calculate_route, find_address
 
-ORIGIN = "Mondorf-les-Bains, Luxembourg"
+ORIGIN = "Luxembourg, Luxembourg"
 DESTINATION = "Paris, France"
 DEFAULT_LLM_BACKEND = "replicate"
 ENABLE_HISTORY = True
@@ -176,6 +176,7 @@ def run_generic_model(query):
 
 
 def clear_history():
+    logger.info("Clearing the conversation history...")
     history.clear()
 
 
@@ -227,15 +228,16 @@ def run_llama3_model(query, voice_character, state):
         backend=state["llm_backend"],
     )
     gr.Info(f"Output text: {output_text}\nGenerating voice output...")
+    output_text_tts = prep_for_tts(output_text)
     voice_out = None
     if global_context["tts_enabled"]:
         if "Fast" in voice_character:
-            voice_out = run_melo_tts(output_text, voice_character)
+            voice_out = run_melo_tts(output_text_tts, voice_character)
         elif global_context["tts_backend"] == "replicate":
-            voice_out = run_tts_replicate(output_text, voice_character)
+            voice_out = run_tts_replicate(output_text_tts, voice_character)
         else:
             voice_out = tts_gradio(
-                output_text, voice_character, speaker_embedding_cache
+                output_text_tts, voice_character, speaker_embedding_cache
             )[0]
         #
         # voice_out = run_tts_fast(output_text)[0]
