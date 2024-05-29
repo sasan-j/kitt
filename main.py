@@ -39,7 +39,7 @@ from kitt.skills.common import config, vehicle
 from kitt.skills.routing import calculate_route, find_address
 
 ORIGIN = "Mondorf-les-Bains, Luxembourg"
-DESTINATION = "Rue Alphonse Weicker, Luxembourg"
+DESTINATION = "Paris, France"
 DEFAULT_LLM_BACKEND = "replicate"
 ENABLE_HISTORY = True
 ENABLE_TTS = True

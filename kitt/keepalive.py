@@ -34,8 +34,9 @@ def job():
     run_replicate_model()
 
 
+logger.info("First run to boot up.")
+run_replicate_model()
 schedule.every(100).seconds.do(job)
-
 logger.info("Keepalive started.")
 
 while True:
