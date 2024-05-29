@@ -34,7 +34,7 @@ def job():
     run_replicate_model()
 
 
-schedule.every(120).seconds.do(job)
+schedule.every(100).seconds.do(job)
 
 logger.info("Keepalive started.")
 

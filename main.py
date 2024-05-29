@@ -151,7 +151,7 @@ tools = [
 ]
 
 functions = [
-    set_vehicle_speed,
+    # set_vehicle_speed,
     set_vehicle_destination,
     get_weather,
     find_route,
@@ -276,6 +276,7 @@ def run_model(query, voice_character, state):
 def calculate_route_gradio(origin, destination):
     _, points = calculate_route(origin, destination)
     plot = kitt_utils.plot_route(points, vehicle=vehicle.location_coordinates)
+    global_context["map"] = plot
     global_context["route_points"] = points
     # state.value["route_points"] = points
     vehicle.location_coordinates = points[0]["latitude"], points[0]["longitude"]

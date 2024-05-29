@@ -67,7 +67,10 @@ def get_weather(location: str = "here"):
     # Formulate the sentences - {region}, {country}
     weather_sentences = (
         f"The current weather in {location} is {condition_text} "
-        f"with a temperature of {temperature_c} C that feels like {feelslike_c} C. "
+        f"with a temperature of {temperature_c} degrees C"
+        f" that feels like {feelslike_c} degrees C."
+        if feelslike_c != temperature_c
+        else ""
         # f"Humidity is at {humidity}%. "
         # f"Wind speed is {wind_kph} kph." if 'wind_kph' in weather_data['current'] else ""
     )
