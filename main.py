@@ -44,7 +44,7 @@ DEFAULT_LLM_BACKEND = "replicate"
 ENABLE_HISTORY = True
 ENABLE_TTS = True
 TTS_BACKEND = "local"
-USER_PREFERENCES = "User loves italian food."
+USER_PREFERENCES = "User prefers italian food."
 
 global_context = {
     "vehicle": vehicle,
@@ -430,7 +430,7 @@ def conditional_update():
 
 def create_demo(tts_server: bool = False, model="llama3"):
     print(f"Running the demo with model: {model} and TTSServer: {tts_server}")
-    with gr.Blocks(theme=gr.themes.Default()) as demo:
+    with gr.Blocks(theme=gr.themes.Default(), title="KITT") as demo:
         state = gr.State(
             value={
                 # "context": initial_context,
