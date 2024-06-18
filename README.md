@@ -1,3 +1,15 @@
+---
+title: KITT
+emoji: 🦀
+colorFrom: red
+colorTo: gray
+sdk: gradio
+sdk_version: 4.36.1
+app_file: main.py
+pinned: false
+license: mit
+---
+
 # KITT: Knowledge-based Intelligence for Transportation Technologies
 
 Presented at [IEEE VNC 2024](https://ieee-vnc.org/2024/) (Vehicle Networking Conference) as a demo titled "Demo: Towards a Conversational LLM-Based Voice Assistant for Transportation Applications"
