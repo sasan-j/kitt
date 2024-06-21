@@ -6,7 +6,6 @@ import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import List
 
-from langchain.memory import ChatMessageHistory
 from langchain.tools.base import StructuredTool
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool

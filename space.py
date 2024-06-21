@@ -1,5 +1,5 @@
 import gradio as gr
-from langchain.memory import ChatMessageHistory
+from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain.tools import tool
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from loguru import logger
