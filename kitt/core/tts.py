@@ -57,10 +57,10 @@ voices_replicate = [
 
 def prep_for_tts(text: str):
     text_tts = copy.deepcopy(text)
-    text_tts = text_tts.replace("km/h", "kilometers per hour")
-    text_tts = text_tts.replace("°C", "degrees Celsius")
-    text_tts = text_tts.replace("°F", "degrees Fahrenheit")
-    text_tts = text_tts.replace("km", "kilometers")
+    text_tts = text_tts.replace("km/h", " kilometers per hour")
+    text_tts = text_tts.replace("°C", " degree Celsius")
+    text_tts = text_tts.replace("°F", " degree Fahrenheit")
+    text_tts = text_tts.replace("km", " kilometers")
     return text_tts
 
 
