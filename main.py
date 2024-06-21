@@ -9,7 +9,7 @@ from kitt.core import utils as kitt_utils
 from kitt.core import voice_options
 from kitt.core.model import generate_function_call as process_query
 from kitt.core.stt import save_and_transcribe_audio
-from kitt.core.tts import prep_for_tts, run_melo_tts, run_tts_fast, run_tts_replicate
+from kitt.core.tts import prep_for_tts, run_melo_tts, run_tts_replicate
 from kitt.skills import (
     code_interpreter,
     date_time_info,
@@ -118,9 +118,6 @@ def run_llama3_model(query, voice_character, state):
             voice_out = tts_gradio(
                 output_text_tts, voice_character, speaker_embedding_cache
             )[0]
-        #
-        # voice_out = run_tts_fast(output_text)[0]
-        #
     return (
         output_text,
         voice_out,

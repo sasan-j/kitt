@@ -1,12 +1,9 @@
 import copy
 from collections import namedtuple
 
-import soundfile as sf
 import torch
 from loguru import logger
-from parler_tts import ParlerTTSForConditionalGeneration
 from replicate import Client
-from transformers import AutoTokenizer
 
 from kitt.skills.common import config
 
@@ -92,31 +89,6 @@ def run_tts_replicate(text: str, voice_character: str):
     )
     logger.info(f"sound output: {output}")
     return output
-
-
-def get_fast_tts():
-    device = "cuda:0" if torch.cuda.is_available() else "cpu"
-
-    model = ParlerTTSForConditionalGeneration.from_pretrained(
-        "parler-tts/parler-tts-mini-expresso"
-    ).to(device)
-    tokenizer = AutoTokenizer.from_pretrained("parler-tts/parler-tts-mini-expresso")
-    return model, tokenizer, device
-
-
-fast_tts = get_fast_tts()
-
-
-def run_tts_fast(text: str):
-    model, tokenizer, device = fast_tts
-    description = "Thomas speaks moderately slowly in a sad tone with emphasis and high quality audio."
-
-    input_ids = tokenizer(description, return_tensors="pt").input_ids.to(device)
-    prompt_input_ids = tokenizer(text, return_tensors="pt").input_ids.to(device)
-
-    generation = model.generate(input_ids=input_ids, prompt_input_ids=prompt_input_ids)
-    audio_arr = generation.cpu().numpy().squeeze()
-    return (model.config.sampling_rate, audio_arr), dict(text=text, voice="Thomas")
 
 
 def load_melo_tts():
