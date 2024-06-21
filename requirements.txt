@@ -13,6 +13,7 @@ transformers
 numpy
 openai-whisper
 geopy
+replicate
 langchain
 langchain-community
 text_generation
