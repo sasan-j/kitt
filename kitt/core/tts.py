@@ -4,7 +4,6 @@ from collections import namedtuple
 import soundfile as sf
 import torch
 from loguru import logger
-from melo.api import TTS as MeloTTS
 from parler_tts import ParlerTTSForConditionalGeneration
 from replicate import Client
 from transformers import AutoTokenizer
@@ -121,15 +120,24 @@ def run_tts_fast(text: str):
 
 
 def load_melo_tts():
+    from melo.api import TTS as MeloTTS
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model = MeloTTS(language="EN", device=device)
     return model
 
 
-melo_tts = load_melo_tts()
+try:
+    melo_tts = load_melo_tts()
+except ImportError as e:
+    logger.error(f"Error loading MeloTTS: {e}")
+    melo_tts = None
 
 
 def run_melo_tts(text: str, voice: str):
+    if melo_tts is None:
+        raise ValueError("MeloTTS not available.")
+
     speed = 1.0
     speaker_ids = melo_tts.hps.data.spk2id
     audio = melo_tts.tts_to_file(text, speaker_ids["EN-Default"], None, speed=speed)
