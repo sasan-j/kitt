@@ -5,7 +5,7 @@ colorFrom: red
 colorTo: gray
 sdk: gradio
 sdk_version: 4.36.1
-app_file: main.py
+app_file: space.py
 pinned: false
 license: mit
 ---
