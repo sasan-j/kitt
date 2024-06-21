@@ -1,3 +1,4 @@
+git+https://github.com/myshell-ai/MeloTTS.git
 torch
 torchvision
 torchaudio
@@ -21,4 +22,3 @@ pydantic-settings
 ollama
 plotly-express
 loguru
-git+https://github.com/myshell-ai/MeloTTS.git
