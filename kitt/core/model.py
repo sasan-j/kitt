@@ -6,13 +6,13 @@ import xml.etree.ElementTree as ET
 from enum import Enum
 from typing import List
 
+import torch
 from langchain.tools.base import StructuredTool
 from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from loguru import logger
 from ollama import Client
 from pydantic import BaseModel
-import torch
 
 from kitt.skills import vehicle_status
 from kitt.skills.common import config
@@ -358,7 +358,7 @@ def load_gpu_model():
         device_map="auto",
         load_in_8bit=False,
         load_in_4bit=True,
-        use_flash_attention_2=True,
+        # use_flash_attention_2=True,
     )
 
     return model, tokenizer
