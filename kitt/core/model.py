@@ -13,6 +13,7 @@ from langchain_core.utils.function_calling import convert_to_openai_tool
 from loguru import logger
 from ollama import Client
 from pydantic import BaseModel
+import torch
 
 from kitt.skills import vehicle_status
 from kitt.skills.common import config
