@@ -9,7 +9,7 @@ from kitt.core import tts_gradio
 from kitt.core import utils as kitt_utils
 from kitt.core import voice_options
 from kitt.core.model import generate_function_call as process_query
-from kitt.core.stt import save_and_transcribe_audio
+from kitt.core.stt import transcribe_audio
 from kitt.core.tts import prep_for_tts, run_melo_tts, run_tts_replicate
 from kitt.skills import (
     code_interpreter,
@@ -182,7 +182,7 @@ def update_vehicle_status(trip_progress, origin, destination, state):
 
 
 def save_and_transcribe_run_model(audio, voice_character, state):
-    text = save_and_transcribe_audio(audio)
+    text = transcribe_audio(audio)
     out_text, out_voice, vehicle_status, state, update_proxy = run_model(
         text, voice_character, state
     )
@@ -452,7 +452,7 @@ def create_demo(tts_server: bool = False, model="llama3"):
             ],
         )
         input_audio_debug.stop_recording(
-            fn=save_and_transcribe_audio,
+            fn=transcribe_audio,
             inputs=[input_audio_debug],
             outputs=[input_text_debug],
         )

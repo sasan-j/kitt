@@ -22,12 +22,9 @@ def save_audio_as_wav(data, sample_rate, file_path):
     )
 
 
-def save_and_transcribe_audio(audio):
+def transcribe_audio(audio):
     sample_rate, data = audio
     try:
-        # add timestamp to file name
-        filename = f"recordings/audio{time.time()}.wav"
-        save_audio_as_wav(data, sample_rate, filename)
         data = data.astype(np.float32)
         data /= np.max(np.abs(data))
         text = transcriber({"sampling_rate": sample_rate, "raw": data})["text"]
@@ -36,4 +33,13 @@ def save_and_transcribe_audio(audio):
     except Exception as e:
         logger.error(f"Error: {e}")
         raise Exception("Error transcribing audio.")
-    return text
+    return text    
+
+
+def save_and_transcribe_audio(audio, save=True):
+    sample_rate, data = audio
+    # add timestamp to file name
+    filename = f"recordings/audio{time.time()}.wav"
+    if save:
+        save_audio_as_wav(data, sample_rate, filename)
+    return transcribe_audio(audio)
