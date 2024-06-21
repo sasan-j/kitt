@@ -347,7 +347,6 @@ def run_inference_ollama(prompt):
 
 def load_gpu_model():
     import bitsandbytes
-    import flash_attn
     from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM
 
     tokenizer = AutoTokenizer.from_pretrained(

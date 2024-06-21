@@ -6,7 +6,6 @@ wurlitzer
 accelerate
 bitsandbytes
 optimum
-flash-attn
 # auto-gptq
 gradio
 TTS
