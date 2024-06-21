@@ -8,10 +8,18 @@ import torchaudio
 from loguru import logger
 from transformers import pipeline
 
-device = "cuda" if torch.cuda.is_available() else "cpu"
-transcriber = pipeline(
-    "automatic-speech-recognition", model="openai/whisper-base.en", device=device
-)
+
+
+transcriber = None
+
+
+def load_stt():
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    transcriber = pipeline(
+        "automatic-speech-recognition", model="openai/whisper-base.en", device=device
+    )
+    return transcriber
+
 
 
 def save_audio_as_wav(data, sample_rate, file_path):
@@ -23,6 +31,10 @@ def save_audio_as_wav(data, sample_rate, file_path):
 
 
 def transcribe_audio(audio):
+    global transcriber
+    if transcriber is None:
+        transcriber = load_stt()
+
     sample_rate, data = audio
     try:
         data = data.astype(np.float32)
