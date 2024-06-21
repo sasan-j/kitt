@@ -14,9 +14,9 @@ numpy
 openai-whisper
 geopy
 langchain
+langchain-community
 text_generation
 python-dotenv
 pydantic-settings
 ollama
-langchain
 plotly-express
