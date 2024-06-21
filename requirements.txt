@@ -5,7 +5,6 @@ matplotlib
 wurlitzer
 accelerate
 bitsandbytes
-https://github.com/Dao-AILab/flash-attention/releases/download/v2.5.9.post1/flash_attn-2.5.9.post1+cu118torch1.12cxx11abiFALSE-cp310-cp310-linux_x86_64.whl
 optimum
 # auto-gptq
 gradio
