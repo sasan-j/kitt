@@ -21,3 +21,4 @@ pydantic-settings
 ollama
 plotly-express
 loguru
+git+https://github.com/myshell-ai/MeloTTS.git
