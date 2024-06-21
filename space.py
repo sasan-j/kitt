@@ -181,6 +181,7 @@ def update_vehicle_status(trip_progress, origin, destination, state):
     return vehicle, plot, state
 
 
+@spaces.GPU
 def save_and_transcribe_run_model(audio, voice_character, state):
     text = transcribe_audio(audio)
     out_text, out_voice, vehicle_status, state, update_proxy = run_model(
