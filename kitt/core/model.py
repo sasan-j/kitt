@@ -345,6 +345,58 @@ def run_inference_ollama(prompt):
     return res
 
 
+def load_gpu_model():
+    import bitsandbytes
+    import flash_attn
+    from transformers import AutoModelForCausalLM, AutoTokenizer, LlamaForCausalLM
+
+    tokenizer = AutoTokenizer.from_pretrained(
+        "NousResearch/Hermes-2-Pro-Llama-3-8B", trust_remote_code=True
+    )
+    model = LlamaForCausalLM.from_pretrained(
+        "NousResearch/Hermes-2-Pro-Llama-3-8B",
+        torch_dtype=torch.float16,
+        device_map="auto",
+        load_in_8bit=False,
+        load_in_4bit=True,
+        use_flash_attention_2=True,
+    )
+
+    return model, tokenizer
+
+
+try:
+    model, tokenizer = load_gpu_model()
+except Exception as e:
+    logger.error(f"Could not load model: {e}")
+    model, tokenizer = None, None
+
+
+def run_inference_local(prompt):
+    """Run inference on local model using huggingface transformers"""
+
+    if not model:
+        logger.error("Model not loaded. Exiting.")
+        raise ValueError("Model not loaded. Exiting.")
+
+    input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to("cuda")
+    generated_ids = model.generate(
+        input_ids,
+        max_new_tokens=1500,
+        temperature=TEMPERATURE,
+        repetition_penalty=REPEAT_PENALTY,
+        do_sample=True,
+        eos_token_id=tokenizer.eos_token_id,
+    )
+    response = tokenizer.decode(
+        generated_ids[0][input_ids.shape[-1] :],
+        skip_special_tokens=True,
+        clean_up_tokenization_space=True,
+    )
+
+    return response
+
+
 def run_inference(prompt, backend="ollama"):
     prompt += AI_PREAMBLE
 
@@ -352,8 +404,12 @@ def run_inference(prompt, backend="ollama"):
 
     if backend == "ollama":
         output = run_inference_ollama(prompt)
-    else:
+    elif backend == "replicate":
         output = run_inference_replicate(prompt)
+    elif backend == "local":
+        output = run_inference_local(prompt)
+    else:
+        raise ValueError(f"Backend {backend} not supported")
 
     logger.debug(f"Response from model: {output}")
     return output

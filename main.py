@@ -198,7 +198,8 @@ def set_tts_enabled(tts_enabled, state):
 
 
 def set_llm_backend(llm_backend, state):
-    new_llm_backend = "ollama" if llm_backend == "Ollama" else "replicate"
+    assert llm_backend in ["Ollama", "Replicate", "Local"], "Invalid LLM backend"
+    new_llm_backend = llm_backend.lower()
     logger.info(
         f"LLM backend was {state['llm_backend']} and changed to {new_llm_backend}"
     )
@@ -283,6 +284,8 @@ def create_demo(tts_server: bool = False, model="llama3"):
         global_context["map"] = plot
 
         with gr.Row():
+            # with gr.Row():
+            #     gr.Text("KITT", interactive=False)
             with gr.Column(scale=1, min_width=300):
                 vehicle_status = gr.JSON(
                     value=vehicle.model_dump(), label="Vehicle status"
@@ -375,7 +378,7 @@ def create_demo(tts_server: bool = False, model="llama3"):
                         interactive=True,
                     )
                     llm_backend = gr.Radio(
-                        choices=["Ollama", "Replicate"],
+                        choices=["Ollama", "Replicate", "Local"],
                         label="LLM Backend",
                         value=DEFAULT_LLM_BACKEND.title(),
                         interactive=True,
