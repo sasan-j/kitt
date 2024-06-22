@@ -8,7 +8,7 @@ bitsandbytes
 optimum
 # auto-gptq
 gradio
-TTS
+TTS==0.22.0
 transformers
 numpy
 openai-whisper
