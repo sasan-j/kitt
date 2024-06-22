@@ -358,7 +358,7 @@ def load_gpu_model():
         device_map="auto",
         load_in_8bit=False,
         load_in_4bit=True,
-        # use_flash_attention_2=True,
+        use_flash_attention_2=True,
     )
 
     return model, tokenizer

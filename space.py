@@ -1,9 +1,11 @@
+import subprocess
+
 import gradio as gr
-from langchain_community.chat_message_histories import ChatMessageHistory
+import spaces
 from langchain.tools import tool
+from langchain_community.chat_message_histories import ChatMessageHistory
 from langchain_core.utils.function_calling import convert_to_openai_tool
 from loguru import logger
-import spaces
 
 from kitt.core import tts_gradio
 from kitt.core import utils as kitt_utils
@@ -27,6 +29,13 @@ from kitt.skills import (
 )
 from kitt.skills.common import config, vehicle
 from kitt.skills.routing import calculate_route, find_address
+
+subprocess.run(
+    "pip install flash-attn --no-build-isolation",
+    env={"FLASH_ATTENTION_SKIP_CUDA_BUILD": "TRUE"},
+    shell=True,
+)
+
 
 ORIGIN = "Luxembourg, Luxembourg"
 DESTINATION = "Paris, France"
