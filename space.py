@@ -1,5 +1,11 @@
 import subprocess
 
+subprocess.run(
+    "pip install flash-attn --no-build-isolation",
+    env={"FLASH_ATTENTION_SKIP_CUDA_BUILD": "TRUE"},
+    shell=True,
+)
+
 import gradio as gr
 import spaces
 from langchain.tools import tool
@@ -29,13 +35,6 @@ from kitt.skills import (
 )
 from kitt.skills.common import config, vehicle
 from kitt.skills.routing import calculate_route, find_address
-
-subprocess.run(
-    "pip install flash-attn --no-build-isolation",
-    env={"FLASH_ATTENTION_SKIP_CUDA_BUILD": "TRUE"},
-    shell=True,
-)
-
 
 ORIGIN = "Luxembourg, Luxembourg"
 DESTINATION = "Paris, France"
