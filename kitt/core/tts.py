@@ -110,7 +110,7 @@ def run_melo_tts(text: str, voice: str):
         except ImportError as e:
             logger.error(f"Error loading MeloTTS: {e}")
             melo_tts = None
-        raise ValueError("MeloTTS not available.")
+            raise ValueError("MeloTTS not available.")
 
     speed = 1.0
     speaker_ids = melo_tts.hps.data.spk2id
