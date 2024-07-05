@@ -13,7 +13,7 @@ def get_weather_current_location():
     Returns:
         dict: The weather data in the specified location.
     """
-    print(
+    logger.info(
         f"get_weather: location is empty, using the vehicle location. ({vehicle.location})"
     )
     location = vehicle.location
@@ -46,8 +46,11 @@ def get_weather(location: str = "here"):
     response = requests.get(url)
 
     if response.status_code != 200:
-        print(f"Failed to get weather data: {response.status_code}, {response.text}")
+        logger.warning(
+            f"Failed to get weather data: {response.status_code}, {response.text}"
+        )
         return f"Failed to get weather data, try again", response
+    logger.info(f"get_weather: response: {response.text}")
 
     # Parse the JSON response
     weather_data = response.json()
@@ -140,5 +143,7 @@ def get_forecast(city_name: str = "", when=0, **kwargs):
         return forecast_sentences
     else:
         # Handle errors
-        print(f"Failed to get weather data: {response.status_code}, {response.text}")
+        logger.error(
+            f"Failed to get weather data: {response.status_code}, {response.text}"
+        )
         return f"error {response.status_code}"
