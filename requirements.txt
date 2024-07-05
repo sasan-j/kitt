@@ -9,7 +9,7 @@ optimum
 # auto-gptq
 gradio
 TTS==0.22.0
-transformers==4.36.2
+transformers>=4.33.0
 numpy
 openai-whisper
 geopy
@@ -22,6 +22,4 @@ pydantic-settings
 ollama
 plotly-express
 loguru
-unidic_lite==1.0.8
-unidic==1.1.0
-melotts @ git+https://github.com/myshell-ai/MeloTTS.git@main
+melotts @ git+https://github.com/sasan-j/MeloTTS.git@main
