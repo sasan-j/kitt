@@ -9,7 +9,7 @@ optimum
 # auto-gptq
 gradio
 TTS==0.22.0
-transformers==4.33.0
+transformers==4.36.2
 numpy
 openai-whisper
 geopy
