@@ -99,15 +99,17 @@ def load_melo_tts():
     return model
 
 
-try:
-    melo_tts = load_melo_tts()
-except ImportError as e:
-    logger.error(f"Error loading MeloTTS: {e}")
-    melo_tts = None
+melo_tts = None
 
 
 def run_melo_tts(text: str, voice: str):
+    global melo_tts
     if melo_tts is None:
+        try:
+            melo_tts = load_melo_tts()
+        except ImportError as e:
+            logger.error(f"Error loading MeloTTS: {e}")
+            melo_tts = None
         raise ValueError("MeloTTS not available.")
 
     speed = 1.0
