@@ -5,7 +5,10 @@ subprocess.run(
     env={"FLASH_ATTENTION_SKIP_CUDA_BUILD": "TRUE"},
     shell=True,
 )
-subprocess.run("pip install -U TTS", shell=True)
+subprocess.run(
+    "python -m unidic download",
+    shell=True,
+)
 
 import gradio as gr
 import spaces
