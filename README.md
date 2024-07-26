@@ -35,6 +35,20 @@ This project integrates speech-to-text and text-to-speech functionalities into a
 •	Real-Time Information Retrieval: Capable of integrating with various APIs to provide up-to-date information on weather, routes, points of interest, and more.
 
 
+## Citation
+```
+@INPROCEEDINGS{jafarnej2024kitt,
+  author={Jafarnejad, Sasan and Berthe-Pardo, Abigail and Frank, Rapha{\"e}l},
+  booktitle={2024 IEEE Vehicular Networking Conference (VNC)}, 
+  title={Demo: Towards a Conversational LLM-Based Voice Assistant for Transportation Applications}, 
+  year={2024},
+  volume={},
+  number={},
+  pages={261-262},
+  doi={10.1109/VNC61989.2024.10575993}}
+
+```
+
 ## Authors
 
 Sasan Jafarnejad
